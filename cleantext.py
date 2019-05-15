@@ -7,7 +7,7 @@ from __future__ import print_function
 import re
 import string
 import argparse
-
+import json
 
 __author__ = ""
 __email__ = ""
@@ -115,13 +115,26 @@ def sanitize(text):
     3. The bigrams
     4. The trigrams
     """
+    
+    # Remove all non-space whitespace
+    text = re.sub('\s+',' ',text)
+    
+    # Remove URLs. Replace them with the empty string ''.
+    text = re.sub(r'\(https?\S+', '', text)
+    
+    # Remove links to subreddits and users
+    text = re.sub('\/r\/[_\-a-z0-9A-Z]*', '', text)
+    text = re.sub('\/u\/[_\-a-z0-9A-Z]*', '', text)
+    
+    # Split text on a single space.
+    text = text.split()
 
-    # YOUR CODE GOES BELOW:
+    # Separate all external punctuation such as periods, commas, etc. into their own tokens (a token is a single piece of text with no spaces), but maintain punctuation within words
+    return text
+    #return [parsed_text, unigrams, bigrams, trigrams]
 
-    return [parsed_text, unigrams, bigrams, trigrams]
 
-
-if __name__ = "__main__":
+if __name__ == "__main__":
     # This is the Python main function.
     # You should be able to run
     # python cleantext.py <filename>
@@ -129,6 +142,20 @@ if __name__ = "__main__":
     # read it line by line, extract the proper value from the JSON,
     # pass to "sanitize" and print the result as a list.
     
-    
-    f.close()
     # YOUR CODE GOES BELOW.
+
+    # Grab filename from user input
+    parser = argparse.ArgumentParser()
+    parser.add_argument('filename')
+    filename = parser.parse_args().filename
+
+    # Extract comment from file line by line
+    with open(filename) as f:
+#        for line in f:
+        for i, line in enumerate(f):
+            if i == 4:
+                line = f.readline()
+                data_dict = json.loads(line)
+                print(data_dict['body'])
+                print("----")
+                print(sanitize(data_dict['body']))
