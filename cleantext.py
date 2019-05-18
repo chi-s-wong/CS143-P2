@@ -126,10 +126,11 @@ def sanitize(text):
     text = re.sub('\/r\/[_\-a-z0-9A-Z]*', '', text)
     text = re.sub('\/u\/[_\-a-z0-9A-Z]*', '', text)
     # Remove uncommon puncuation
-    text = re.sub('["*&()%$@]+', '', text)
+    text = re.sub('(?<![a-z])["*&()%$@]+(?=[a-z])', '', text)
+    text = re.sub('(?<=[a-z])["*&()%$@]+(?![a-z])', '', text)
 
     # Pad Punctuation
-    text = re.sub('([.,!?])(?![a-z])', r' \1 ', text)
+    text = re.sub('([.,!?;:])(?![a-z])', r' \1 ', text)
     # Convert parsed text to lower case
     text = text.lower()
     # Split text on a single space.
