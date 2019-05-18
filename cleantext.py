@@ -117,6 +117,7 @@ def sanitize(text):
     """
     
     # Remove all non-space whitespace
+    text = text.lower()
     text = re.sub('\s+',' ',text)
     
     # Remove URLs. Replace them with the empty string ''.
@@ -131,8 +132,6 @@ def sanitize(text):
 
     # Pad Punctuation
     text = re.sub('([.,!?;:])(?![a-z])', r' \1 ', text)
-    # Convert parsed text to lower case
-    text = text.lower()
     # Split text on a single space.
     text = text.split()
     parsed_text = ""
