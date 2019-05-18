@@ -119,17 +119,14 @@ def sanitize(text):
     # Remove all non-space whitespace
     text = text.lower()
     text = re.sub('\s+',' ',text)
-    
-    # Remove URLs. Replace them with the empty string ''.
-    text = re.sub(r'\(https?\S+', '', text)
-    
+    # Remove URLs
+    text = re.sub('(http[s]?://)?www.\S+', '', text)    
     # Remove links to subreddits and users
     text = re.sub('\/r\/[_\-a-z0-9A-Z]*', '', text)
     text = re.sub('\/u\/[_\-a-z0-9A-Z]*', '', text)
     # Remove uncommon puncuation
-    text = re.sub('(?<![a-z])["*&()%$@]+(?=[a-z])', '', text)
-    text = re.sub('(?<=[a-z])["*&()%$@]+(?![a-z])', '', text)
-
+    text = re.sub('(?<![a-z])[\[\]"*&()%$@]+(?=[a-z])', '', text)
+    text = re.sub('(?<=[a-z])[\[\]"*&()%$@]+(?![a-z])', '', text)
     # Pad Punctuation
     text = re.sub('([.,!?;:])(?![a-z])', r' \1 ', text)
     # Split text on a single space.
@@ -171,6 +168,5 @@ if __name__ == "__main__":
                 line = f.readline()
                 data_dict = json.loads(line)
                 print(data_dict['body'])
-                print("----")
                 print(sanitize(data_dict['body']))
 
