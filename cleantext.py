@@ -3,7 +3,7 @@
 """Clean comment text for easier parsing."""
 
 from __future__ import print_function
-
+import unittest
 import re
 import string
 import argparse
@@ -125,13 +125,29 @@ def sanitize(text):
     # Remove links to subreddits and users
     text = re.sub('\/r\/[_\-a-z0-9A-Z]*', '', text)
     text = re.sub('\/u\/[_\-a-z0-9A-Z]*', '', text)
-    
+    # Remove uncommon puncuation
+    text = re.sub('["*&()%$@]+', '', text)
+
+    # Pad Punctuation
+    text = re.sub('([.,!?])(?![a-z])', r' \1 ', text)
+    # Convert parsed text to lower case
+    text = text.lower()
     # Split text on a single space.
     text = text.split()
+    parsed_text = ""
+    unigrams = ""
+    digrams = ""
+    trigrams = ""
+
+    for token in text:
+    	parsed_text += token + ' '
+    print('Parsed Text:\n'+ parsed_text + '\n--------\n')
 
     # Separate all external punctuation such as periods, commas, etc. into their own tokens (a token is a single piece of text with no spaces), but maintain punctuation within words
-    return text
+    return {"parsed_text": parsed_text, "unigrams": unigrams, "digrams": digrams, "trigrams":trigrams}
     #return [parsed_text, unigrams, bigrams, trigrams]
+
+
 
 
 if __name__ == "__main__":
@@ -148,7 +164,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('filename')
     filename = parser.parse_args().filename
-
     # Extract comment from file line by line
     with open(filename) as f:
 #        for line in f:
@@ -159,3 +174,4 @@ if __name__ == "__main__":
                 print(data_dict['body'])
                 print("----")
                 print(sanitize(data_dict['body']))
+
