@@ -136,7 +136,7 @@ def sanitize(text):
     text = text.split()
     parsed_text = ""
     unigrams = ""
-    digrams = ""
+    bigrams = ""
     trigrams = ""
 
     for token in text:
@@ -144,8 +144,7 @@ def sanitize(text):
     print('Parsed Text:\n'+ parsed_text + '\n--------\n')
 
     # Separate all external punctuation such as periods, commas, etc. into their own tokens (a token is a single piece of text with no spaces), but maintain punctuation within words
-    return {"parsed_text": parsed_text, "unigrams": unigrams, "digrams": digrams, "trigrams":trigrams}
-    #return [parsed_text, unigrams, bigrams, trigrams]
+    return [parsed_text, unigrams, bigrams, trigrams]
 
 
 
