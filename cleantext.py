@@ -6,7 +6,6 @@ from __future__ import print_function
 import unittest
 import re
 import string
-import argparse
 import sys
 
 import json
@@ -30,6 +29,7 @@ def sanitize(text):
     text = text.lower()
 
     # Replace all whitespace with a single space
+
     text = re.sub(r'\s+',' ',text)
 
     # Remove all links (e.g. [abc](xyz)def --> [abc]def)
@@ -39,6 +39,7 @@ def sanitize(text):
     text = re.sub(r'((http[s]?://)?www.\S+)|(http[s]?://\S+)', '', text)   
 
     # Split text on single spaces
+
     words = text.split()
     
     # Separate external punctuation then remove non-ending and non-embedded punctuation
@@ -139,6 +140,13 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "")
 		self.assertEqual(res[3], "")
 
+	def test_surrounding_punc(self):
+		res = sanitize("!!!meow!!!")
+		self.assertEqual(res[0], "! ! ! meow ! ! !")
+		self.assertEqual(res[1], "meow")
+		self.assertEqual(res[2], "")
+		self.assertEqual(res[3], "")
+
 	def test_new_line_chars(self):
 		res = sanitize("wow\nthis\nlooks\nreally\tcool\njoinme?")
 		self.assertEqual(res[0], "wow this looks really cool joinme ?")
@@ -196,6 +204,13 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "hey_check check_out out_this this_profile profile_chis chis_profile")
 		self.assertEqual(res[3], "hey_check_out check_out_this out_this_profile this_profile_chis profile_chis_profile")
                 
+	def test_user_link_trailing(self):
+		res = sanitize("[omarTI](/u/omarTI)!!!!")
+		self.assertEqual(res[0], "omarti ! ! ! !")
+		self.assertEqual(res[1], "omarti")
+		self.assertEqual(res[2], "")
+		self.assertEqual(res[3], "")
+
 	def test_url_https_with_www(self):
 		res = sanitize("this is a link to [reddit of the internet](https://www.reddit.com)")
 		self.assertEqual(res[0], "this is a link to reddit of the internet")
