@@ -129,22 +129,6 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "")
 		self.assertEqual(res[3], "")
 
-	'''
-	Failing test:
-		This is how it should output like
-		[desc of url](url) --> desc of url
-	'''
-	def test_url(self):
-		right_link_answer = "congress specifically passed a law removing all consumers right to sue"
-		res = sanitize("""[Congress specifically passed a law removing all consumers right to sue]
-			(https://techcrunch.com/2017/10/24/congress-votes-to-disallow-consumers-from-suing-equifax-and-other-companies-with-arbitration-agreements)""")
-		self.assertEqual(res[0], right_link_answer)
-		res = sanitize(right_link_answer)
-		# Run tests on what the sanitized link should have been, these will and should pass
-		self.assertEqual(res[1], "congress specifically passed a law removing all consumers right to sue")
-		self.assertEqual(res[2], "congress_specifically specifically_passed passed_a a_law law_removing removing_all all_consumers consumers_right right_to to_sue")
-		self.assertEqual(res[3], "congress_specifically_passed specifically_passed_a passed_a_law a_law_removing law_removing_all removing_all_consumers all_consumers_right consumers_right_to right_to_sue")
-
 	def test_lots_of_whitespace(self):
 		res = sanitize("     hey my name        is chi     ")
 		self.assertEqual(res[0], "hey my name is chi")
@@ -187,17 +171,6 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "youare..mm_really really_cool")
 		self.assertEqual(res[3], "youare..mm_really_cool")
 
-	'''
-	Failing test:
-		Check the regex code, it seemed like /u/chiwong gets removed completely 
-	'''
-	def test_stuff_and_user_chi_wong(self):
-		res = sanitize("/u/chiwong was here")
-		self.assertEqual(res[0], "u/chiwong was here")
-		self.assertEqual(res[1], "u/chiwong was here")
-		self.assertEqual(res[2], "u/chiwong_was was_here")
-		self.assertEqual(res[3], "u/chiwong_was_here")
-
 
 	def test_example_from_spec(self):
 		res = sanitize("I'm afraid I can't explain myself, sir. Because I am not myself, you see?")
@@ -205,6 +178,34 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[1], "i'm afraid i can't explain myself sir because i am not myself you see")
 		self.assertEqual(res[2], "i'm_afraid afraid_i i_can't can't_explain explain_myself because_i i_am am_not not_myself you_see")
 		self.assertEqual(res[3], "i'm_afraid_i afraid_i_can't i_can't_explain can't_explain_myself because_i_am i_am_not am_not_myself")
+
+	'''
+	Failing test:
+		Check the regex code, it seemed like /u/chiwong gets removed completely 
+	'''
+	def test_user_link(self):
+		res = sanitize("/u/chiwong was here")
+		self.assertEqual(res[0], "u/chiwong was here")
+		self.assertEqual(res[1], "u/chiwong was here")
+		self.assertEqual(res[2], "u/chiwong_was was_here")
+		self.assertEqual(res[3], "u/chiwong_was_here")
+
+	'''
+	Failing test:
+		This is how it should output like
+		[desc of url](url) --> desc of url
+	'''
+	def test_url(self):
+		right_link_answer = "congress specifically passed a law removing all consumers right to sue"
+		res = sanitize("""[Congress specifically passed a law removing all consumers right to sue]
+			(https://techcrunch.com/2017/10/24/congress-votes-to-disallow-consumers-from-suing-equifax-and-other-companies-with-arbitration-agreements)""")
+		self.assertEqual(res[0], right_link_answer)
+		res = sanitize(right_link_answer)
+		# Run tests on what the sanitized link should have been, these will and should pass
+		self.assertEqual(res[1], "congress specifically passed a law removing all consumers right to sue")
+		self.assertEqual(res[2], "congress_specifically specifically_passed passed_a a_law law_removing removing_all all_consumers consumers_right right_to to_sue")
+		self.assertEqual(res[3], "congress_specifically_passed specifically_passed_a passed_a_law a_law_removing law_removing_all removing_all_consumers all_consumers_right consumers_right_to right_to_sue")
+
 
 if __name__ == "__main__":
     # This is the Python main function.
