@@ -228,11 +228,19 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[1], "this is a link to reddit of the internet")
 		self.assertEqual(res[2], "this_is is_a a_link link_to to_reddit reddit_of of_the the_internet")
 		self.assertEqual(res[3], "this_is_a is_a_link a_link_to link_to_reddit to_reddit_of reddit_of_the of_the_internet")
+	
+	def test_plain_url_with_www(self):
+		res = sanitize("https://www.reddit.com")
+		self.assertEqual(res[0], "")
+		self.assertEqual(res[0], "")
+		self.assertEqual(res[2], "")
+		self.assertEqual(res[3], "")
+
 	'''
 	Failing test:
-		plain urls should be removed completely 
+		No www fails
 	'''
-	def test_plain_url(self):
+	def test_plain_url_no_www(self):
 		res = sanitize("https://reddit.com")
 		self.assertEqual(res[0], "")
 		self.assertEqual(res[0], "")
