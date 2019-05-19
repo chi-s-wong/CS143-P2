@@ -34,9 +34,10 @@ def sanitize(text):
     text = re.sub(r'\s+',' ',text)
     # Remove URLs
     text = re.sub(r'((http[s]?://)?www.\S+)|(http[s]?://\S+)', '', text)   
-    text = re.sub(r'\[(.*)\]\(([\/u\/\S+]+)\)', r'\1', text)
-    text = re.sub(r'\[(.*)\]\(([\/r\/\S+]+)\)', r'\1', text)
-
+    # text = re.sub(r'\[(.*)\]\(([\/u\/\S+]+)\)', r'\1', text)
+    # text = re.sub(r'\[(.*)\]\(([\/r\/\S+]+)\)', r'\1', text)
+    text = re.sub(r'(\[.*\])(\(.*\))', r'\1', text)
+    
     # # Remove links to subreddits and users
     # text = re.sub('\/r\/[_\-a-z0-9A-Z]*', '', text)
     # text = re.sub('\/u\/[_\-a-z0-9A-Z]*', '', text)
@@ -202,6 +203,13 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[1], "hey check out this profile chis profile")
 		self.assertEqual(res[2], "hey_check check_out out_this this_profile profile_chis chis_profile")
 		self.assertEqual(res[3], "hey_check_out check_out_this out_this_profile this_profile_chis profile_chis_profile")
+                
+	def test_plain_url_with_www(self):
+		res = sanitize("[omarTI](/u/omarTI)!!!!")
+		self.assertEqual(res[0], "omarti!!!!")
+		self.assertEqual(res[0], "omarti!!!!")
+		self.assertEqual(res[2], "")
+		self.assertEqual(res[3], "")
 
 	def test_url_https_with_www(self):
 		res = sanitize("this is a link to [reddit of the internet](https://www.reddit.com)")
