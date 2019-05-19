@@ -62,10 +62,10 @@ def sanitize(text):
     			if index + 2 <= len(tokens)-1 and tokens[index+2] not in common:
     				trigrams += bigram + '_' + tokens[index+2] + ' '
     
-    # print('Parsed Text:\n'+ parsed_text + '\n')
-    # print('Unigrams:\n'+ unigrams + '\n')
-    # print('Bigrams:\n'+ bigrams +'\n')
-    # print('Trigrams:\n'+ trigrams + '\n')
+    print('Parsed Text:\n'+ parsed_text + '\n')
+    print('Unigrams:\n'+ unigrams + '\n')
+    print('Bigrams:\n'+ bigrams +'\n')
+    print('Trigrams:\n'+ trigrams + '\n')
 
     # Separate all external punctuation such as periods, commas, etc. into their own tokens (a token is a single piece of text with no spaces), but maintain punctuation within words
     return [parsed_text.strip(), unigrams.strip(), bigrams.strip(), trigrams.strip()]
@@ -192,22 +192,42 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "u/chiwong_was was_here")
 		self.assertEqual(res[3], "u/chiwong_was_here")
 
+	
+	def test_url_https_with_www(self):
+		res = sanitize("this is a link to [reddit of the internet](https://www.reddit.com)")
+		self.assertEqual(res[0], "this is a link to reddit of the internet")
+		self.assertEqual(res[1], "this is a link to reddit of the internet")
+		self.assertEqual(res[2], "this_is is_a a_link link_to to_reddit reddit_of of_the the_internet")
+		self.assertEqual(res[3], "this_is_a is_a_link a_link_to link_to_reddit to_reddit_of reddit_of_the of_the_internet")
+	
 	'''
 	Failing test:
-		This is how it should output like
-		[desc of url](url) --> desc of url
+		No www fails
 	'''
-	def test_url(self):
-		right_link_answer = "congress specifically passed a law removing all consumers right to sue"
-		res = sanitize("""[Congress specifically passed a law removing all consumers right to sue]
-			(https://techcrunch.com/2017/10/24/congress-votes-to-disallow-consumers-from-suing-equifax-and-other-companies-with-arbitration-agreements)""")
-		self.assertEqual(res[0], right_link_answer)
-		res = sanitize(right_link_answer)
-		# Run tests on what the sanitized link should have been, these will and should pass
-		self.assertEqual(res[1], "congress specifically passed a law removing all consumers right to sue")
-		self.assertEqual(res[2], "congress_specifically specifically_passed passed_a a_law law_removing removing_all all_consumers consumers_right right_to to_sue")
-		self.assertEqual(res[3], "congress_specifically_passed specifically_passed_a passed_a_law a_law_removing law_removing_all removing_all_consumers all_consumers_right consumers_right_to right_to_sue")
+	def test_url_https_with_no_www(self):
+		res = sanitize("this is a link to [reddit of the internet](https://reddit.com)")
+		self.assertEqual(res[0], "this is a link to reddit of the internet")
+		self.assertEqual(res[1], "this is a link to reddit of the internet")
+		self.assertEqual(res[2], "this_is is_a a_link link_to to_reddit reddit_of of_the the_internet")
+		self.assertEqual(res[3], "this_is_a is_a_link a_link_to link_to_reddit to_reddit_of reddit_of_the of_the_internet")
+	
+	def test_url_http_with_www(self):
+		res = sanitize("this is a link to [reddit of the internet](http://www.reddit.com)")
+		self.assertEqual(res[0], "this is a link to reddit of the internet")
+		self.assertEqual(res[1], "this is a link to reddit of the internet")
+		self.assertEqual(res[2], "this_is is_a a_link link_to to_reddit reddit_of of_the the_internet")
+		self.assertEqual(res[3], "this_is_a is_a_link a_link_to link_to_reddit to_reddit_of reddit_of_the of_the_internet")
 
+	'''
+	Failing test:
+		No www fails
+	'''
+	def test_url_http_with_no_www(self):
+		res = sanitize("this is a link to [reddit of the internet](http://reddit.com)")
+		self.assertEqual(res[0], "this is a link to reddit of the internet")
+		self.assertEqual(res[1], "this is a link to reddit of the internet")
+		self.assertEqual(res[2], "this_is is_a a_link link_to to_reddit reddit_of of_the the_internet")
+		self.assertEqual(res[3], "this_is_a is_a_link a_link_to link_to_reddit to_reddit_of reddit_of_the of_the_internet")
 	'''
 	Failing test:
 		plain urls should be removed completely 
