@@ -296,7 +296,7 @@ if __name__ == "__main__":
     # # YOUR CODE GOES BELOW.
     # sanitize("what !!!!! they am i where")
     if (len(sys.argv) > 1):
-    	print("Chi, we're not barbarians. Check out the unit tests and type python3 cleantext.py to run them")
+    	print("Chi, we're not barbarians.\nCheck out the unit tests and type python3 cleantext.py to run them\nYour reading file code is still there just commented out")
     	exit()
     unittest.main()
 
