@@ -6,7 +6,6 @@ from __future__ import print_function
 import unittest
 import re
 import string
-import argparse
 import sys
 
 import json
@@ -16,7 +15,6 @@ __email__ = ""
 
 
 common = ["!", ".", ",", "?",";", ":"]
-
 
 # You may need to write regular expressions.
 
@@ -30,18 +28,11 @@ def sanitize(text):
     """
     # Remove all non-space whitespace
     text = text.lower()
-    import pdb; pdb.set_trace()
     # print('Input Text:\n' + text + '\n\n')
     text = re.sub(r'\s+',' ',text)
     # Remove URLs
     text = re.sub(r'(\[.*\])(\(.*\))', r'\1', text)
     text = re.sub(r'((http[s]?://)?www.\S+)|(http[s]?://\S+)', '', text)   
-    # text = re.sub(r'\[(.*)\]\(([\/u\/\S+]+)\)', r'\1', text)
-    # text = re.sub(r'\[(.*)\]\(([\/r\/\S+]+)\)', r'\1', text)
-    
-    # # Remove links to subreddits and users
-    # text = re.sub('\/r\/[_\-a-z0-9A-Z]*', '', text)
-    # text = re.sub('\/u\/[_\-a-z0-9A-Z]*', '', text)
     words = text.split()
     tokens = []
     for word in words:
@@ -148,6 +139,13 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "")
 		self.assertEqual(res[3], "")
 
+	def test_surrounding_punc(self):
+		res = sanitize("!!!meow!!!")
+		self.assertEqual(res[0], "! ! ! meow ! ! !")
+		self.assertEqual(res[1], "meow")
+		self.assertEqual(res[2], "")
+		self.assertEqual(res[3], "")
+
 	def test_new_line_chars(self):
 		res = sanitize("wow\nthis\nlooks\nreally\tcool\njoinme?")
 		self.assertEqual(res[0], "wow this looks really cool joinme ?")
@@ -205,10 +203,10 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "hey_check check_out out_this this_profile profile_chis chis_profile")
 		self.assertEqual(res[3], "hey_check_out check_out_this out_this_profile this_profile_chis profile_chis_profile")
                 
-	def test_plain_url_with_www(self):
+	def test_plain_user_url_with_www(self):
 		res = sanitize("[omarTI](/u/omarTI)!!!!")
-		self.assertEqual(res[0], "omarti!!!!")
-		self.assertEqual(res[0], "omarti!!!!")
+		self.assertEqual(res[0], "omarti ! ! ! !")
+		self.assertEqual(res[1], "omarti")
 		self.assertEqual(res[2], "")
 		self.assertEqual(res[3], "")
 
