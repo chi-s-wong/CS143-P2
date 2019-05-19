@@ -13,10 +13,8 @@ import json
 __author__ = ""
 __email__ = ""
 
-
-common = ["!", ".", ",", "?",";", ":"]
-
-# You may need to write regular expressions.
+# Common ending punctuation marks
+common = ["!", ".", ",", "?", ";", ":"]
 
 def sanitize(text):
     """Do parse the text in variable "text" according to the spec, and return
@@ -26,27 +24,35 @@ def sanitize(text):
     3. The bigrams
     4. The trigrams
     """
-    # Remove all non-space whitespace
+    
+    # Convert text to lowercase
     text = text.lower()
-    # print('Input Text:\n' + text + '\n\n')
+
+    # Replace all whitespace with a single space
+
     text = re.sub(r'\s+',' ',text)
-    # Remove URLs
+
+    # Remove all links (e.g. [abc](xyz)def --> [abc]def)
     text = re.sub(r'(\[.*\])(\(.*\))', r'\1', text)
+
+    # Remove URLs
     text = re.sub(r'((http[s]?://)?www.\S+)|(http[s]?://\S+)', '', text)   
+
+    # Split text on single spaces
+
     words = text.split()
+    
+    # Separate external punctuation then remove non-ending and non-embedded punctuation
     tokens = []
     for word in words:
     	separate_tokens(word, tokens)
-    # print("After cleaning")
-    # print(tokens)
-    # print('\n')
-
-    # Pad Punctuation
-    # Split text on a single space.
+        
     parsed_text = ""
     unigrams = ""
     bigrams = ""
     trigrams = ""
+    
+    # Populate lists to return
     for index, token in enumerate(tokens):
     	parsed_text += token + ' '
     	if token not in common:
@@ -56,12 +62,7 @@ def sanitize(text):
     			bigrams +=  bigram + ' '
     			if index + 2 <= len(tokens)-1 and tokens[index+2] not in common:
     				trigrams += bigram + '_' + tokens[index+2] + ' '
-    
-    # print('Parsed Text:\n'+ parsed_text + '\n')
-    # print('Unigrams:\n'+ unigrams + '\n')
-    # print('Bigrams:\n'+ bigrams +'\n')
-    # print('Trigrams:\n'+ trigrams + '\n')
-
+                                
     return [parsed_text.strip(), unigrams.strip(), bigrams.strip(), trigrams.strip()]
 
 
@@ -197,13 +198,13 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[3], "this_link_u/omartl link_u/omartl_shouldn't u/omartl_shouldn't_be shouldn't_be_removed")
 
 	def test_user_link_remove(self):
-		res = sanitize("hey check out this profile [chis profile](/u/chiwong)")
-		self.assertEqual(res[0], "hey check out this profile chis profile")
+		res = sanitize("hey check out this profile [chis profile](/u/chiwong)!!!")
+		self.assertEqual(res[0], "hey check out this profile chis profile ! ! !")
 		self.assertEqual(res[1], "hey check out this profile chis profile")
 		self.assertEqual(res[2], "hey_check check_out out_this this_profile profile_chis chis_profile")
 		self.assertEqual(res[3], "hey_check_out check_out_this out_this_profile this_profile_chis profile_chis_profile")
                 
-	def test_plain_user_url_with_www(self):
+	def test_user_link_trailing(self):
 		res = sanitize("[omarTI](/u/omarTI)!!!!")
 		self.assertEqual(res[0], "omarti ! ! ! !")
 		self.assertEqual(res[1], "omarti")
@@ -241,17 +242,17 @@ class TestItems(unittest.TestCase):
 	def test_plain_url_with_www(self):
 		res = sanitize("https://www.reddit.com")
 		self.assertEqual(res[0], "")
-		self.assertEqual(res[0], "")
+		self.assertEqual(res[1], "")
 		self.assertEqual(res[2], "")
 		self.assertEqual(res[3], "")
 
 	def test_plain_url_no_www(self):
 		res = sanitize("https://reddit.com")
 		self.assertEqual(res[0], "")
-		self.assertEqual(res[0], "")
+		self.assertEqual(res[1], "")
 		self.assertEqual(res[2], "")
 		self.assertEqual(res[3], "")
-
+                
 if __name__ == "__main__":
 	# Just type 'python3 cleantext.py' to run unit tests
     if (len(sys.argv) > 1):
