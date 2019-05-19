@@ -31,12 +31,15 @@ def sanitize(text):
     # Remove all non-space whitespace
     text = text.lower()
     # print('Input Text:\n' + text + '\n\n')
-    text = re.sub('\s+',' ',text)
+    text = re.sub(r'\s+',' ',text)
     # Remove URLs
-    text = re.sub('((http[s]?://)?www.\S+)|(http[s]?://\S+)', '', text)    
-    # Remove links to subreddits and users
-    text = re.sub('\/r\/[_\-a-z0-9A-Z]*', '', text)
-    text = re.sub('\/u\/[_\-a-z0-9A-Z]*', '', text)
+    text = re.sub(r'((http[s]?://)?www.\S+)|(http[s]?://\S+)', '', text)   
+    text = re.sub(r'\[(.*)\]\(([\/u\/\S+]+)\)', r'\1', text)
+    text = re.sub(r'\[(.*)\]\(([\/r\/\S+]+)\)', r'\1', text)
+
+    # # Remove links to subreddits and users
+    # text = re.sub('\/r\/[_\-a-z0-9A-Z]*', '', text)
+    # text = re.sub('\/u\/[_\-a-z0-9A-Z]*', '', text)
     words = text.split()
     tokens = []
     for word in words:
@@ -66,7 +69,6 @@ def sanitize(text):
     # print('Bigrams:\n'+ bigrams +'\n')
     # print('Trigrams:\n'+ trigrams + '\n')
 
-    # Separate all external punctuation such as periods, commas, etc. into their own tokens (a token is a single piece of text with no spaces), but maintain punctuation within words
     return [parsed_text.strip(), unigrams.strip(), bigrams.strip(), trigrams.strip()]
 
 
@@ -145,7 +147,7 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[3], "")
 
 	def test_new_line_chars(self):
-		res = sanitize("wow\n this looks really \n cool \njoinme?")
+		res = sanitize("wow\nthis\nlooks\nreally\tcool\njoinme?")
 		self.assertEqual(res[0], "wow this looks really cool joinme ?")
 		self.assertEqual(res[1], "wow this looks really cool joinme")
 		self.assertEqual(res[2], "wow_this this_looks looks_really really_cool cool_joinme")
@@ -180,10 +182,6 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "i'm_afraid afraid_i i_can't can't_explain explain_myself because_i i_am am_not not_myself you_see")
 		self.assertEqual(res[3], "i'm_afraid_i afraid_i_can't i_can't_explain can't_explain_myself because_i_am i_am_not am_not_myself")
 
-	'''
-	Failing test:
-		Check the regex code, it seemed like /u/chiwong gets removed completely 
-	'''
 	def test_user_link(self):
 		res = sanitize("/u/chiwong was here")
 		self.assertEqual(res[0], "u/chiwong was here")
@@ -191,18 +189,27 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "u/chiwong_was was_here")
 		self.assertEqual(res[3], "u/chiwong_was_here")
 
-	
+	def test_link_in_parens(self):
+		res = sanitize("this link (/u/omarTl) shouldn't be removed")
+		self.assertEqual(res[0], "this link u/omartl shouldn't be removed")
+		self.assertEqual(res[1], "this link u/omartl shouldn't be removed")
+		self.assertEqual(res[2], "this_link link_u/omartl u/omartl_shouldn't shouldn't_be be_removed")
+		self.assertEqual(res[3], "this_link_u/omartl link_u/omartl_shouldn't u/omartl_shouldn't_be shouldn't_be_removed")
+
+	def test_user_link_remove(self):
+		res = sanitize("hey check out this profile [chis profile](/u/chiwong)")
+		self.assertEqual(res[0], "hey check out this profile chis profile")
+		self.assertEqual(res[1], "hey check out this profile chis profile")
+		self.assertEqual(res[2], "hey_check check_out out_this this_profile profile_chis chis_profile")
+		self.assertEqual(res[3], "hey_check_out check_out_this out_this_profile this_profile_chis profile_chis_profile")
+
 	def test_url_https_with_www(self):
 		res = sanitize("this is a link to [reddit of the internet](https://www.reddit.com)")
 		self.assertEqual(res[0], "this is a link to reddit of the internet")
 		self.assertEqual(res[1], "this is a link to reddit of the internet")
 		self.assertEqual(res[2], "this_is is_a a_link link_to to_reddit reddit_of of_the the_internet")
 		self.assertEqual(res[3], "this_is_a is_a_link a_link_to link_to_reddit to_reddit_of reddit_of_the of_the_internet")
-	
-	'''
-	Failing test:
-		No www fails
-	'''
+
 	def test_url_https_with_no_www(self):
 		res = sanitize("this is a link to [reddit of the internet](https://reddit.com)")
 		self.assertEqual(res[0], "this is a link to reddit of the internet")
@@ -217,10 +224,6 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "this_is is_a a_link link_to to_reddit reddit_of of_the the_internet")
 		self.assertEqual(res[3], "this_is_a is_a_link a_link_to link_to_reddit to_reddit_of reddit_of_the of_the_internet")
 
-	'''
-	Failing test:
-		No www fails
-	'''
 	def test_url_http_with_no_www(self):
 		res = sanitize("this is a link to [reddit of the internet](http://reddit.com)")
 		self.assertEqual(res[0], "this is a link to reddit of the internet")
@@ -235,10 +238,6 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "")
 		self.assertEqual(res[3], "")
 
-	'''
-	Failing test:
-		No www fails
-	'''
 	def test_plain_url_no_www(self):
 		res = sanitize("https://reddit.com")
 		self.assertEqual(res[0], "")
