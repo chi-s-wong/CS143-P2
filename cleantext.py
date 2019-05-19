@@ -30,13 +30,14 @@ def sanitize(text):
     """
     # Remove all non-space whitespace
     text = text.lower()
+    import pdb; pdb.set_trace()
     # print('Input Text:\n' + text + '\n\n')
     text = re.sub(r'\s+',' ',text)
     # Remove URLs
+    text = re.sub(r'(\[.*\])(\(.*\))', r'\1', text)
     text = re.sub(r'((http[s]?://)?www.\S+)|(http[s]?://\S+)', '', text)   
     # text = re.sub(r'\[(.*)\]\(([\/u\/\S+]+)\)', r'\1', text)
     # text = re.sub(r'\[(.*)\]\(([\/r\/\S+]+)\)', r'\1', text)
-    text = re.sub(r'(\[.*\])(\(.*\))', r'\1', text)
     
     # # Remove links to subreddits and users
     # text = re.sub('\/r\/[_\-a-z0-9A-Z]*', '', text)
