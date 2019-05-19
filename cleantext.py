@@ -51,7 +51,6 @@ def sanitize(text):
     unigrams = ""
     bigrams = ""
     trigrams = ""
-    plain_tokens = []
     for index, token in enumerate(tokens):
     	parsed_text += token + ' '
     	if token not in common:
@@ -62,10 +61,10 @@ def sanitize(text):
     			if index + 2 <= len(tokens)-1 and tokens[index+2] not in common:
     				trigrams += bigram + '_' + tokens[index+2] + ' '
     
-    print('Parsed Text:\n'+ parsed_text + '\n')
-    print('Unigrams:\n'+ unigrams + '\n')
-    print('Bigrams:\n'+ bigrams +'\n')
-    print('Trigrams:\n'+ trigrams + '\n')
+    # print('Parsed Text:\n'+ parsed_text + '\n')
+    # print('Unigrams:\n'+ unigrams + '\n')
+    # print('Bigrams:\n'+ bigrams +'\n')
+    # print('Trigrams:\n'+ trigrams + '\n')
 
     # Separate all external punctuation such as periods, commas, etc. into their own tokens (a token is a single piece of text with no spaces), but maintain punctuation within words
     return [parsed_text.strip(), unigrams.strip(), bigrams.strip(), trigrams.strip()]
