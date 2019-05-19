@@ -57,9 +57,10 @@ def sanitize(text):
     	if token not in common:
     		unigrams += token + ' '
     		if index + 1 <= len(tokens)-1 and tokens[index+1] not in common:
-    			bigrams += token + '_' + tokens[index+1] + ' '
+    			bigram = token + '_' + tokens[index+1]
+    			bigrams +=  bigram + ' '
     			if index + 2 <= len(tokens)-1 and tokens[index+2] not in common:
-    				trigrams += token + '_' + tokens[index+1] + '_' + tokens[index+2] + ' '
+    				trigrams += bigram + '_' + tokens[index+2] + ' '
     
     # print('Parsed Text:\n'+ parsed_text + '\n')
     # print('Unigrams:\n'+ unigrams + '\n')
@@ -71,6 +72,9 @@ def sanitize(text):
 
 
 def separate_tokens(word, token_list):
+	# if this word begins and ends with letters or numbers, we dont
+	# have any work to do, just add it to the token_list and return
+	# Ex's: "aaaaa", "a!!!7"
 	if both_alnum(word):
 		token_list.append(word)
 		return
@@ -171,7 +175,7 @@ class TestItems(unittest.TestCase):
 
 
 	def test_example_from_spec(self):
-		res = sanitize("I'm afraid I can't explain myself, sir. Because I am not myself, you see?")
+		res = sanitize("I'm afraid I can't- explain myself, sir. Because I am not myself, you see?")
 		self.assertEqual(res[0], "i'm afraid i can't explain myself , sir . because i am not myself , you see ?")
 		self.assertEqual(res[1], "i'm afraid i can't explain myself sir because i am not myself you see")
 		self.assertEqual(res[2], "i'm_afraid afraid_i i_can't can't_explain explain_myself because_i i_am am_not not_myself you_see")
