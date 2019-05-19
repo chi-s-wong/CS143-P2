@@ -74,8 +74,6 @@ def separate_tokens(word, token_list):
 	if both_alnum(word):
 		token_list.append(word)
 		return
-	cleaned_token = ""
-	letters = []
 	# For each token, record the index of the first letter and last letter
 	# EX: "<<<a!!m" --> first_letter = 3, last_letter = 6
 	first_letter, last_letter = get_indices(word)
