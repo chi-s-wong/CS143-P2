@@ -221,32 +221,15 @@ class TestItems(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # This is the Python main function.
-    # You should be able to run
-    # python cleantext.py <filename>
-    # and this "main" function will open the file,
-    # read it line by line, extract the proper value from the JSON,
-    # pass to "sanitize" and print the result as a list.
-    
-    # # YOUR CODE GOES BELOW.
-    # sanitize("what !!!!! they am i where")
+	# Just type 'python3 cleantext.py' to run unit tests
     if (len(sys.argv) > 1):
-    	print("""Chi, read this.
-    			\nCheck out the unit tests in here and type python3 cleantext.py to run them
-    			\n3 of them are currently failing (url and user/sub links)""")
-    	exit()
-    unittest.main()
-
-    # sanitize("")
-    # sanitize("what is the meaning of life?")
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('filename')
-    # filename = parser.parse_args().filename
-    # # Extract comment from file line by line
-    # with open(filename) as f:
-    #     for i, line in enumerate(f):
-    #             line = f.readline()
-    #             data_dict = json.loads(line)
-    #             print(data_dict['body'])
-    #             print(sanitize(data_dict['body']))
+    	filename = sys.argv[1]
+    	with open(filename) as f:
+        	for i, line in enumerate(f):
+	        	line = f.readline()
+	        	data_dict = json.loads(line)
+	        	print(data_dict['body'])
+	        	print(sanitize(data_dict['body']))
+    else:
+    	unittest.main()    	
 
