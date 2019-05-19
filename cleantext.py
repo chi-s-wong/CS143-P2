@@ -10,9 +10,6 @@ import sys
 
 import json
 
-__author__ = ""
-__email__ = ""
-
 # Common ending punctuation marks
 common = ["!", ".", ",", "?", ";", ":"]
 
@@ -29,7 +26,6 @@ def sanitize(text):
     text = text.lower()
 
     # Replace all whitespace with a single space
-
     text = re.sub(r'\s+',' ',text)
 
     # Remove all links (e.g. [abc](xyz)def --> [abc]def)
@@ -39,7 +35,6 @@ def sanitize(text):
     text = re.sub(r'((http[s]?://)?www.\S+)|(http[s]?://\S+)', '', text)   
 
     # Split text on single spaces
-
     words = text.split()
     
     # Separate external punctuation then remove non-ending and non-embedded punctuation
@@ -175,7 +170,6 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "youare..mm_really really_cool")
 		self.assertEqual(res[3], "youare..mm_really_cool")
 
-
 	def test_example_from_spec(self):
 		res = sanitize("I'm afraid I can't- explain myself, sir. Because I am not myself, you see?")
 		self.assertEqual(res[0], "i'm afraid i can't explain myself , sir . because i am not myself , you see ?")
@@ -253,6 +247,20 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "")
 		self.assertEqual(res[3], "")
                 
+	def test_plain_subreddit(self):
+		res = sanitize("/r/omariscool")
+		self.assertEqual(res[0], "r/omariscool")
+		self.assertEqual(res[1], "r/omariscool")
+		self.assertEqual(res[2], "")
+		self.assertEqual(res[3], "")
+                
+	def test_linked_subreddit(self):
+		res = sanitize("hello my name is [omar](/r/omar)")
+		self.assertEqual(res[0], "hello my name is omar")
+		self.assertEqual(res[1], "hello my name is omar")
+		self.assertEqual(res[2], "hello_my my_name name_is is_omar")
+		self.assertEqual(res[3], "hello_my_name my_name_is name_is_omar")
+
 if __name__ == "__main__":
 	# Just type 'python3 cleantext.py' to run unit tests
     if (len(sys.argv) > 1):
