@@ -246,14 +246,12 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "")
 		self.assertEqual(res[3], "")
 
-
 if __name__ == "__main__":
 	# Just type 'python3 cleantext.py' to run unit tests
     if (len(sys.argv) > 1):
     	filename = sys.argv[1]
     	with open(filename) as f:
         	for i, line in enumerate(f):
-	        	line = f.readline()
 	        	data_dict = json.loads(line)
 	        	print(data_dict['body'])
 	        	print(sanitize(data_dict['body']))
