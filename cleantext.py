@@ -33,7 +33,7 @@ def sanitize(text):
     # print('Input Text:\n' + text + '\n\n')
     text = re.sub('\s+',' ',text)
     # Remove URLs
-    text = re.sub('(http[s]?://)?www.\S+', '', text)    
+    text = re.sub('((http[s]?://)?www.\S+)|(http[s]?://\S+)', '', text)    
     # Remove links to subreddits and users
     text = re.sub('\/r\/[_\-a-z0-9A-Z]*', '', text)
     text = re.sub('\/u\/[_\-a-z0-9A-Z]*', '', text)
