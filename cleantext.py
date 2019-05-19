@@ -208,6 +208,17 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "congress_specifically specifically_passed passed_a a_law law_removing removing_all all_consumers consumers_right right_to to_sue")
 		self.assertEqual(res[3], "congress_specifically_passed specifically_passed_a passed_a_law a_law_removing law_removing_all removing_all_consumers all_consumers_right consumers_right_to right_to_sue")
 
+	'''
+	Failing test:
+		plain urls should be removed completely 
+	'''
+	def test_plain_url(self):
+		res = sanitize("https://reddit.com")
+		self.assertEqual(res[0], "")
+		self.assertEqual(res[0], "")
+		self.assertEqual(res[2], "")
+		self.assertEqual(res[3], "")
+
 
 if __name__ == "__main__":
     # This is the Python main function.
@@ -222,7 +233,7 @@ if __name__ == "__main__":
     if (len(sys.argv) > 1):
     	print("""Chi, read this.
     			\nCheck out the unit tests in here and type python3 cleantext.py to run them
-    			\n2 of them are currently failing (url and user/sub links)""")
+    			\n3 of them are currently failing (url and user/sub links)""")
     	exit()
     unittest.main()
 
