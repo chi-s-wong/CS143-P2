@@ -14,98 +14,7 @@ import json
 __author__ = ""
 __email__ = ""
 
-# Depending on your implementation,
-# this data may or may not be useful.
-# Many students last year found it redundant.
-_CONTRACTIONS = {
-    "tis": "'tis",
-    "aint": "ain't",
-    "amnt": "amn't",
-    "arent": "aren't",
-    "cant": "can't",
-    "couldve": "could've",
-    "couldnt": "couldn't",
-    "didnt": "didn't",
-    "doesnt": "doesn't",
-    "dont": "don't",
-    "hadnt": "hadn't",
-    "hasnt": "hasn't",
-    "havent": "haven't",
-    "hed": "he'd",
-    "hell": "he'll",
-    "hes": "he's",
-    "howd": "how'd",
-    "howll": "how'll",
-    "hows": "how's",
-    "id": "i'd",
-    "ill": "i'll",
-    "im": "i'm",
-    "ive": "i've",
-    "isnt": "isn't",
-    "itd": "it'd",
-    "itll": "it'll",
-    "its": "it's",
-    "mightnt": "mightn't",
-    "mightve": "might've",
-    "mustnt": "mustn't",
-    "mustve": "must've",
-    "neednt": "needn't",
-    "oclock": "o'clock",
-    "ol": "'ol",
-    "oughtnt": "oughtn't",
-    "shant": "shan't",
-    "shed": "she'd",
-    "shell": "she'll",
-    "shes": "she's",
-    "shouldve": "should've",
-    "shouldnt": "shouldn't",
-    "somebodys": "somebody's",
-    "someones": "someone's",
-    "somethings": "something's",
-    "thatll": "that'll",
-    "thats": "that's",
-    "thatd": "that'd",
-    "thered": "there'd",
-    "therere": "there're",
-    "theres": "there's",
-    "theyd": "they'd",
-    "theyll": "they'll",
-    "theyre": "they're",
-    "theyve": "they've",
-    "wasnt": "wasn't",
-    "wed": "we'd",
-    "wedve": "wed've",
-    "well": "we'll",
-    "were": "we're",
-    "weve": "we've",
-    "werent": "weren't",
-    "whatd": "what'd",
-    "whatll": "what'll",
-    "whatre": "what're",
-    "whats": "what's",
-    "whatve": "what've",
-    "whens": "when's",
-    "whered": "where'd",
-    "wheres": "where's",
-    "whereve": "where've",
-    "whod": "who'd",
-    "whodve": "whod've",
-    "wholl": "who'll",
-    "whore": "who're",
-    "whos": "who's",
-    "whove": "who've",
-    "whyd": "why'd",
-    "whyre": "why're",
-    "whys": "why's",
-    "wont": "won't",
-    "wouldve": "would've",
-    "wouldnt": "wouldn't",
-    "yall": "y'all",
-    "youd": "you'd",
-    "youll": "you'll",
-    "youre": "you're",
-    "youve": "you've"
-}
+
 common = ["!", ".", ",", "?",";", ":"]
 
 
@@ -278,6 +187,18 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[2], "youare..mm_really really_cool")
 		self.assertEqual(res[3], "youare..mm_really_cool")
 
+	'''
+	Failing test:
+		Check the regex code, it seemed like /u/chiwong gets removed completely 
+	'''
+	def test_stuff_and_user_chi_wong(self):
+		res = sanitize("/u/chiwong was here")
+		self.assertEqual(res[0], "u/chiwong was here")
+		self.assertEqual(res[1], "u/chiwong was here")
+		self.assertEqual(res[2], "u/chiwong_was was_here")
+		self.assertEqual(res[3], "u/chiwong_was_here")
+
+
 	def test_example_from_spec(self):
 		res = sanitize("I'm afraid I can't explain myself, sir. Because I am not myself, you see?")
 		self.assertEqual(res[0], "i'm afraid i can't explain myself , sir . because i am not myself , you see ?")
@@ -296,7 +217,9 @@ if __name__ == "__main__":
     # # YOUR CODE GOES BELOW.
     # sanitize("what !!!!! they am i where")
     if (len(sys.argv) > 1):
-    	print("Chi, we're not barbarians.\nCheck out the unit tests and type python3 cleantext.py to run them\nYour reading file code is still there just commented out")
+    	print("""Chi, read this.
+    			\nCheck out the unit tests in here and type python3 cleantext.py to run them
+    			\n2 of them are currently failing (url and user/sub links)""")
     	exit()
     unittest.main()
 
