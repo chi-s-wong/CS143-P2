@@ -57,7 +57,7 @@ def sanitize(text):
     			if index + 2 <= len(tokens)-1 and tokens[index+2] not in common:
     				trigrams += bigram + '_' + tokens[index+2] + ' '
                                 
-    return [parsed_text.strip(), unigrams.strip(), bigrams.strip(), trigrams.strip()]
+    return [parsed_text.strip().split(), unigrams.strip().split(), bigrams.strip().split(), trigrams.strip().split()]
 
 
 def separate_tokens(word, token_list):

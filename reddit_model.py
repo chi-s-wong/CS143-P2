@@ -21,14 +21,22 @@ def main(context):
 
     ### TASK 2
     ## Join labelsDF and commentsDF
-    dataDF = labelsDF.join(commentsDF, labelsDF._c0 = commentsDF.id)
-    # Question 1: F = {id -> label_dem,label_gop,label_djt)
-    # Question 2:
+    ## Question 1: F = {id -> label_dem,label_gop,label_djt)
+    ## Question 2:
+    
     # Yes, this table seems normalized. The collector stored it this way because it was the most straightforward way of storing the comment ID and its associated labels
+    # dataDF = labelsDF.join(commentsDF, labelsDF._c0 == commentsDF.id)
 
     
-    ### TASK 3
+    ### TASK 4 + 5
+    from cleantext import sanitize
+    sanitize_udf = spark.udf.register("sanitize", sanitize)
+    dataDF = dataDF.withColumn("sanitized_text", sanitize_udf('body'))
+    dataDF.write.parquet("sanitized_data.pqt")
+
+    ### TASK 6A
     
+
 
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")

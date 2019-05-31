@@ -3,3 +3,6 @@
 *.csv
 #*#
 *.pqt
+metastore_db/*
+__pycache__/*
+*.log
