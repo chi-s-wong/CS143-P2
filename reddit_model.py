@@ -12,12 +12,12 @@ def main(context):
     ## Load data
     # commentsDF = context.read.json("comments-minimal.json.bz2")
     # submissionsDF = context.read.json("submissions.json.bz2")
-    # dataDF = context.read.csv("labeled_data.csv")
+    # labelsDF = context.read.csv("labeled_data.csv")
 
     ## Write data into parquet files for faster loading in the future
     # commentsDF.write.parquet("comments.pqt")
     # submissionsDF.write.parquet("submissions.pqt")
-    # dataDF.write.parquet("data.pqt")
+    # labelsDF.write.parquet("labels.pqt")
 
     ### TASK 2
     ## Join labelsDF and commentsDF
@@ -25,11 +25,10 @@ def main(context):
     # Question 1: F = {id -> label_dem,label_gop,label_djt)
     # Question 2:
     # Yes, this table seems normalized. The collector stored it this way because it was the most straightforward way of storing the comment ID and its associated labels
+
     
     ### TASK 3
-    # dataDF.columns
-    # dataDF.count()
-    # dataDF.first()
+    
 
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
