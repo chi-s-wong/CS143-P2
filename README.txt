@@ -1,2 +1,1 @@
-UCLA CS 143 Project 2A
-Spring 2019
+UCLA CS143 Project 2B Spring 2019

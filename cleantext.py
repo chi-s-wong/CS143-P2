@@ -7,7 +7,6 @@ import unittest
 import re
 import string
 import sys
-
 import json
 
 # Common ending punctuation marks
@@ -255,11 +254,11 @@ class TestItems(unittest.TestCase):
 		self.assertEqual(res[3], "")
                 
 	def test_linked_subreddit(self):
-		res = sanitize("hello my name is [omar](/r/omar)")
-		self.assertEqual(res[0], "hello my name is omar")
+		res = sanitize("hello! my name is [omar](/r/omar)")
+		self.assertEqual(res[0], "hello ! my name is omar")
 		self.assertEqual(res[1], "hello my name is omar")
-		self.assertEqual(res[2], "hello_my my_name name_is is_omar")
-		self.assertEqual(res[3], "hello_my_name my_name_is name_is_omar")
+		self.assertEqual(res[2], "my_name name_is is_omar")
+		self.assertEqual(res[3], "my_name_is name_is_omar")
 
 if __name__ == "__main__":
 	# Just type 'python3 cleantext.py' to run unit tests
