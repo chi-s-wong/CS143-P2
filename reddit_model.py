@@ -48,7 +48,7 @@ def main(context):
     # dataDF.write.parquet("sanitized_data.pqt")
 
     ### TASK 6A
-    cv = CountVectorizer(inputCol="sanitized_text", outputCol="features", binary=True, minTF=10)
+    cv = CountVectorizer(inputCol="sanitized_text", outputCol="features", binary=True, minDF=10)
     udf_pos_colum = udf(pos_column, IntegerType())
     udf_neg_colum = udf(neg_column, IntegerType())
 
