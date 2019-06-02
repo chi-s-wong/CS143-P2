@@ -8,41 +8,44 @@ from pyspark.ml.feature import CountVectorizer
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
-
+from pathlib import Path
 
 def main(context):
     """Main function takes a Spark SQL context."""
     # YOUR CODE HERE
     # YOU MAY ADD OTHER FUNCTIONS AS NEEDED
-
-    # commentsDF = context.read.json("comments-minimal.json.bz2")
-    # submissionsDF = context.read.json("submissions.json.bz2")
-    # labelsDF = context.read.csv("labeled_data.csv", header=True)
-
+    
     ### TASK 1
-    ## Run the following if you already have the parquet files
-    commentsDF = sqlContext.read.parquet('comments.pqt')
-    labelsDF = sqlContext.read.parquet('labels.pqt')
+    # Load data from parquets if exists
+    # Otherwise, read from json/csv files and write to new parquet
+    if Path("/home/cs143/project2/comments.pqt").is_dir():
+        commentsDF = sqlContext.read.parquet('comments.pqt')
+    else:
+        commentsDF = context.read.json("comments-minimal.json.bz2")
+        commentsDF.write.parquet("comments.pqt")
+        
+    if Path("/home/cs143/project2/labels.pqt").is_dir():
+        labelsDF = sqlContext.read.parquet('labels.pqt')
+    else:
+        labelsDF = context.read.csv("labeled_data.csv", header=True)
+        labelsDF.write.parquet("labels.pqt")
 
-    # Load data from files
-
-
-    # Write data into parquet files for faster loading in the future
-    # commentsDF.write.parquet("comments.pqt")
-    # submissionsDF.write.parquet("submissions.pqt")
-    # labelsDF.write.parquet("labels.pqt")
-
+    # if Path("/home/cs143/project2/submissions.pqt").is_dir():
+    #     submissionsDF = sqlContext.read.parquet('submissions.pqt')
+    # else:
+    #     submissionsDF = context.read.json("submissions.json.bz2")
+    #     submissionsDF.write.parquet("submissions.pqt")
 
     ### TASK 2
     ## Join labelsDF and commentsDF
     ## Question 1: F = {id -> label_dem,label_gop,label_djt)
     ## Question 2:
     # Yes, this table seems normalized. The collector stored it this way because it was the most straightforward way of storing the comment ID and its associated labels
-
     dataDF = labelsDF.join(commentsDF, labelsDF.Input_id == commentsDF.id)
 
 
     # ### TASK 4 + 5
+    # Call sanitize as UDF on body attribute of datafram
     sanitize_udf = udf(sanitize, ArrayType(StringType()))
     dataDF = dataDF.withColumn("sanitized_text", sanitize_udf('body'))
     # dataDF.write.parquet("sanitized_data.pqt")
@@ -105,6 +108,7 @@ def pos_column(value):
     return 1 if int(value) == 1 else 0
 def neg_column(value):
     return 1 if int(value) == -1 else 0
+
 
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
