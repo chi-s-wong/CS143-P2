@@ -52,10 +52,6 @@ def main(context):
     print(model)
     result = model.transform(dataDF)
     result.show(truncate=True)
-    # This throws the following exception
-    # IllegalArgumentException: 'requirement failed: Column sanitized_text must
-    # be of type equal to one of the following types: [array<string>, array<string>]
-    # but was actually of type string.'
 
 
 
