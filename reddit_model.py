@@ -64,8 +64,8 @@ def main(context):
     poslr = LogisticRegression(labelCol="poslabel", featuresCol="features", maxIter=10)
     neglr = LogisticRegression(labelCol="neglabel", featuresCol="features", maxIter=10)
     # This is a binary classifier so we need an evaluator that knows how to deal with binary classifiers.
-    posEvaluator = BinaryClassificationEvaluator()
-    negEvaluator = BinaryClassificationEvaluator()
+    posEvaluator = BinaryClassificationEvaluator(labelCol="poslabel")
+    negEvaluator = BinaryClassificationEvaluator(labelCol="neglabel")
     # There are a few parameters associated with logistic regression. We do not know what they are a priori.
     # We do a grid search to find the best parameters. We can replace [1.0] with a list of values to try.
     # We will assume the parameter is 1.0. Grid search takes forever.
