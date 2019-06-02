@@ -37,8 +37,7 @@ def main(context):
     ## Question 1: F = {id -> label_dem,label_gop,label_djt)
     ## Question 2:
     # Yes, this table seems normalized. The collector stored it this way because it was the most straightforward way of storing the comment ID and its associated labels
-    print(labelsDF)
-    print(commentsDF)
+
     dataDF = labelsDF.join(commentsDF, labelsDF.Input_id == commentsDF.id)
 
 
@@ -50,6 +49,7 @@ def main(context):
     ### TASK 6A
     cv = CountVectorizer(inputCol="sanitized_text", outputCol="features", binary=True, minTF=10)
     model = cv.fit(dataDF)
+    print(model)
     result = model.transform(dataDF)
     result.show(truncate=True)
     # This throws the following exception
