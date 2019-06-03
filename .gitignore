@@ -6,3 +6,4 @@
 metastore_db/*
 __pycache__/*
 *.log
+project2/*

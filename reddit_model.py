@@ -15,8 +15,8 @@ def main(context):
     # YOUR CODE HERE
     # YOU MAY ADD OTHER FUNCTIONS AS NEEDED
     
-    ### TASK 1
-    # Load data from parquets if exists
+    # TASK 1
+    # Load data from parquets if directory exists
     # Otherwise, read from json/csv files and write to new parquet
     if Path("/home/cs143/project2/comments.pqt").is_dir():
         commentsDF = sqlContext.read.parquet('comments.pqt')
@@ -36,21 +36,24 @@ def main(context):
     #     submissionsDF = context.read.json("submissions.json.bz2")
     #     submissionsDF.write.parquet("submissions.pqt")
 
-    ### TASK 2
-    ## Join labelsDF and commentsDF
-    ## Question 1: F = {id -> label_dem,label_gop,label_djt)
-    ## Question 2:
-    # Yes, this table seems normalized. The collector stored it this way because it was the most straightforward way of storing the comment ID and its associated labels
-    dataDF = labelsDF.join(commentsDF, labelsDF.Input_id == commentsDF.id)
+    # Skip to Task 6A if parquet for sanitized, labelled data already exists
+    if Path("/home/cs143/project2/sanitized_data.pqt").is_dir():
+        dataDF = sqlContext.read.parquet('sanitized_data.pqt')
+    else:
+        # TASK 2
+        # Question 1: F = {id -> label_dem,label_gop,label_djt)
+        # Question 2:
+        # Yes, this table seems normalized. The collector stored it this way because it was the most straightforward way of storing the comment ID and its associated labels
+        dataDF = labelsDF.join(commentsDF, labelsDF.Input_id == commentsDF.id)
 
+        # TASKS 4, 5
+        # Call sanitize as UDF on body attribute of dataframe
+        sanitize_udf = udf(sanitize, ArrayType(StringType()))
+        dataDF = dataDF.withColumn("sanitized_text", sanitize_udf('body'))
+        dataDF.write.parquet("sanitized_data.pqt")
+        
 
-    # ### TASK 4 + 5
-    # Call sanitize as UDF on body attribute of datafram
-    sanitize_udf = udf(sanitize, ArrayType(StringType()))
-    dataDF = dataDF.withColumn("sanitized_text", sanitize_udf('body'))
-    # dataDF.write.parquet("sanitized_data.pqt")
-
-    ### TASK 6A
+    # TASKS 6A, 6B
     cv = CountVectorizer(inputCol="sanitized_text", outputCol="features", binary=True, minDF=10)
     udf_pos_colum = udf(pos_column, IntegerType())
     udf_neg_colum = udf(neg_column, IntegerType())
@@ -110,10 +113,13 @@ def neg_column(value):
     return 1 if int(value) == -1 else 0
 
 
+    # TASK 8
+
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
     conf = conf.setMaster("local[*]")
     sc   = SparkContext(conf=conf)
     sqlContext = SQLContext(sc)
     sc.addPyFile("cleantext.py")
+    sc.setLogLevel("WARN")
     main(sqlContext)
