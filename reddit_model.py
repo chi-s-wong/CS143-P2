@@ -23,9 +23,6 @@ states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
 def main(context):
     udf_pos_colum = udf(pos_column, IntegerType())
     udf_neg_colum = udf(neg_column, IntegerType())
-    clean_udf = udf(clean_link, StringType())
-    udf_pos = udf(get_pos_prob, IntegerType())
-    udf_neg = udf(get_neg_prob, IntegerType())
 
     """Main function takes a Spark SQL context."""
     # YOUR CODE HERE
@@ -59,63 +56,40 @@ def main(context):
                           binary=True, minDF=10)
     model = cv.fit(dataDF)
     result = model.transform(dataDF)
-    # positive_df = result.withColumn("poslabel", udf_pos_colum('labeldjt'))
-    # negative_df = result.withColumn("neglabel", udf_neg_colum('labeldjt'))
+    positive_df = result.withColumn("poslabel", udf_pos_colum('labeldjt'))
+    negative_df = result.withColumn("neglabel", udf_neg_colum('labeldjt'))
+
+    try:
+        posModel = CrossValidatorModel.load('project2/pos.model')
+        negModel = CrossValidatorModel.load('project2/neg.model')
+    except:
+        posModel, negModel = train_models(positive_df, negative_df)
 
 
-    # # Initialize two logistic regression models.
-    # # Replace labelCol with the column containing the label, and featuresCol with the column containing the features.
-    # poslr = LogisticRegression(labelCol="poslabel", featuresCol="features", maxIter=10)
-    # neglr = LogisticRegression(labelCol="neglabel", featuresCol="features", maxIter=10)
-    # # This is a binary classifier so we need an evaluator that knows how to deal with binary classifiers.
-    # posEvaluator = BinaryClassificationEvaluator(labelCol="poslabel")
-    # negEvaluator = BinaryClassificationEvaluator(labelCol="neglabel")
-    # # There are a few parameters associated with logistic regression. We do not know what they are a priori.
-    # # We do a grid search to find the best parameters. We can replace [1.0] with a list of values to try.
-    # # We will assume the parameter is 1.0. Grid search takes forever.
-    # posParamGrid = ParamGridBuilder().addGrid(poslr.regParam, [1.0]).build()
-    # negParamGrid = ParamGridBuilder().addGrid(neglr.regParam, [1.0]).build()
-    # # We initialize a 5 fold cross-validation pipeline.
-    # posCrossval = CrossValidator(
-    #     estimator=poslr,
-    #     evaluator=posEvaluator,
-    #     estimatorParamMaps=posParamGrid,
-    #     numFolds=5)
-    # negCrossval = CrossValidator(
-    #     estimator=neglr,
-    #     evaluator=negEvaluator,
-    #     estimatorParamMaps=negParamGrid,
-    #     numFolds=5)
-    # # Although crossvalidation creates its own train/test sets for
-    # # tuning, we still need a labeled test set, because it is not
-    # # accessible from the crossvalidator (argh!)
-    # # Split the data 50/50
-    # posTrain, posTest = positive_df.randomSplit([0.5, 0.5])
-    # negTrain, negTest = negative_df.randomSplit([0.5, 0.5])
-    # # Train the models
-    # print("Training positive classifier...")
-    # posModel = posCrossval.fit(posTrain)
-    # print("Training negative classifier...")
-    # negModel = negCrossval.fit(negTrain)
+    try:
+        task10 = sqlContext.read.parquet("task10.pqt")
+    except:
+        task10 = get_pos_negDF(dataDF, submissionsDF, posModel, negModel, model,
+                                sanitize_udf)
+        task10.write.parquet("task10.pqt")
+    task10.show(n=50)
 
-    # # Once we train the models, we don't want to do it again. We can save the models and load them again later.
-    # posModel.save("project2/pos.model")
-    # negModel.save("project2/neg.model")
+
+def get_pos_negDF(dataDF, submissionsDF, posModel, negModel, model, sanitize):
+    udf_clean = udf(clean_link, StringType())
+    udf_pos = udf(get_pos_prob, IntegerType())
+    udf_neg = udf(get_neg_prob, IntegerType())
     # # TASK 8
     # # Remove sarcastic or quote comments
-    posModel = CrossValidatorModel.load('project2/pos.model')
-    negModel = CrossValidatorModel.load('project2/neg.model')
-
     commentsDF = dataDF.filter((~dataDF.body.like("%/s%")) &
                     (~dataDF.body.like("&gt%"))).select("*")
-
-    cleanedDF = commentsDF.withColumn("clean_link_id", clean_udf('link_id'))
+    cleanedDF = commentsDF.withColumn("clean_link_id", udf_clean('link_id'))
     pre_sanitizedDF = cleanedDF.join(submissionsDF,
         cleanedDF.clean_link_id == submissionsDF.id).select(
         cleanedDF['created_utc'], cleanedDF['body'],
         cleanedDF['author_flair_text'], submissionsDF['score'],
         cleanedDF['clean_link_id'], submissionsDF['title'])
-    sanDF = pre_sanitizedDF.withColumn('sanitized_text',sanitize_udf('body'))
+    sanDF = pre_sanitizedDF.withColumn('sanitized_text',sanitize('body'))
     result = model.transform(sanDF)
     pos_training = posModel.transform(result).selectExpr('features',
         'clean_link_id as id', 'created_utc as time', 'body',
@@ -123,9 +97,49 @@ def main(context):
         'sanitized_text')
     both_training = negModel.transform(pos_training)
     both_with_pos = both_training.withColumn('pos', udf_pos('pos_probability'))
-    allDF = both_with_pos.withColumn('neg', udf_neg('probability'))
-    allDF.show(n=75)
+    return both_with_pos.withColumn('neg', udf_neg('probability'))
 
+def train_models(pos, neg):
+    # Initialize two logistic regression models.
+    # Replace labelCol with the column containing the label, and featuresCol with the column containing the features.
+    poslr = LogisticRegression(labelCol="poslabel", featuresCol="features", maxIter=10)
+    neglr = LogisticRegression(labelCol="neglabel", featuresCol="features", maxIter=10)
+    # This is a binary classifier so we need an evaluator that knows how to deal with binary classifiers.
+    posEvaluator = BinaryClassificationEvaluator(labelCol="poslabel")
+    negEvaluator = BinaryClassificationEvaluator(labelCol="neglabel")
+    # There are a few parameters associated with logistic regression. We do not know what they are a priori.
+    # We do a grid search to find the best parameters. We can replace [1.0] with a list of values to try.
+    # We will assume the parameter is 1.0. Grid search takes forever.
+    posParamGrid = ParamGridBuilder().addGrid(poslr.regParam, [1.0]).build()
+    negParamGrid = ParamGridBuilder().addGrid(neglr.regParam, [1.0]).build()
+    # We initialize a 5 fold cross-validation pipeline.
+    posCrossval = CrossValidator(
+        estimator=poslr,
+        evaluator=posEvaluator,
+        estimatorParamMaps=posParamGrid,
+        numFolds=5)
+    negCrossval = CrossValidator(
+        estimator=neglr,
+        evaluator=negEvaluator,
+        estimatorParamMaps=negParamGrid,
+        numFolds=5)
+    # Although crossvalidation creates its own train/test sets for
+    # tuning, we still need a labeled test set, because it is not
+    # accessible from the crossvalidator (argh!)
+    # Split the data 50/50
+    posTrain, posTest = pos.randomSplit([0.5, 0.5])
+    negTrain, negTest = neg.randomSplit([0.5, 0.5])
+    # Train the models
+    print("Training positive classifier...")
+    posModel = posCrossval.fit(posTrain)
+    print("Training negative classifier...")
+    negModel = negCrossval.fit(negTrain)
+
+    # Once we train the models, we don't want to do it again.
+    # We can save the models and load them again later.
+    posModel.save("project2/pos.model")
+    negModel.save("project2/neg.model")
+    return posModel, negModel
 
 def get_pos_prob(probability):
     return 1 if float(probability[1]) > .2 else 0
