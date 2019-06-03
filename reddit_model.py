@@ -112,6 +112,10 @@ def pos_column(value):
 def neg_column(value):
     return 1 if int(value) == -1 else 0
 
+    # TASK 8
+    # Remove sarcastic or quote comments
+    commentsDF = commentsDF.filter((~commentsDF.body.like("%/s%")) & (~commentsDF.body.like("&gt%"))).select("*")
+    
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
     conf = conf.setMaster("local[*]")
