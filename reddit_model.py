@@ -83,15 +83,17 @@ def main(context):
     # print("Training negative classifier...")
     # negModel = negCrossval.fit(negTrain)
 
-    # # # Once we train the models, we don't want to do it again. We can save the models and load them again later.
+    # # Once we train the models, we don't want to do it again. We can save the models and load them again later.
     # posModel.save("project2/pos.model")
     # negModel.save("project2/neg.model")
-    # # # TASK 8
+    # # TASK 8
     # # Remove sarcastic or quote comments
     posModel = CrossValidatorModel.load('project2/pos.model')
     negModel = CrossValidatorModel.load('project2/neg.model')
-    commentsDF = commentsDF.filter((~commentsDF.body.like("%/s%")) &
-                    (~commentsDF.body.like("&gt%"))).select("*")
+
+    commentsDF = dataDF.filter((~dataDF.body.like("%/s%")) &
+                    (~dataDF.body.like("&gt%"))).select("*")
+
     clean_udf = udf(clean_link, StringType())
     cleanedDF = commentsDF.withColumn("clean_link_id", clean_udf('link_id'))
     pre_sanitizedDF = cleanedDF.join(submissionsDF,
@@ -100,11 +102,21 @@ def main(context):
         cleanedDF['clean_link_id'], submissionsDF['title'])
     sanitizedDF = pre_sanitizedDF.withColumn('sanitized_text', sanitize_udf('body'))
     result = model.transform(sanitizedDF)
-    pos_training = posModel.transform(result)
-    print(pos_training)
-    # result = model.transform(dataDF)
-    # result.show(truncate=True)
+    pos_training = posModel.transform(result).selectExpr('features',
+        'clean_link_id as id', 'created_utc as time', 'body',
+        'author_flair_text as state', 'title','probability as pos_probability',
+        'sanitized_text')
+    both_training = negModel.transform(pos_training)
+    udf_pos = udf(get_pos_prob, IntegerType())
+    udf_neg = udf(get_neg_prob, IntegerType())
+    both_with_pos = both_training.withColumn('pos', udf_pos('pos_probability'))
+    allDF = both_with_pos.withColumn('neg', udf_neg('probability'))
 
+
+def get_pos_prob(probability):
+    return 1 if float(probability[1]) > .2 else 0
+def get_neg_prob(probability):
+    return 1 if float(probability[1]) > .25 else 0
 def clean_link(link):
     return link[3:]
 def pos_column(value):
