@@ -106,14 +106,11 @@ def main(context):
 
     # result = model.transform(dataDF)
     # result.show(truncate=True)
-
+    
 def pos_column(value):
     return 1 if int(value) == 1 else 0
 def neg_column(value):
     return 1 if int(value) == -1 else 0
-
-
-    # TASK 8
 
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
