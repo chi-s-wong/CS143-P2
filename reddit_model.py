@@ -75,7 +75,7 @@ def main(context):
     task10.show(n=50)
 
 
-def get_pos_negDF(dataDF, submissionsDF, posModel, negModel, model, sanitize):
+def get_pos_negDF(dataDF, submissionsDF, posModel, negModel, model, clean):
     udf_clean = udf(clean_link, StringType())
     udf_pos = udf(get_pos_prob, IntegerType())
     udf_neg = udf(get_neg_prob, IntegerType())
@@ -89,7 +89,7 @@ def get_pos_negDF(dataDF, submissionsDF, posModel, negModel, model, sanitize):
         cleanedDF['created_utc'], cleanedDF['body'],
         cleanedDF['author_flair_text'], submissionsDF['score'],
         cleanedDF['clean_link_id'], submissionsDF['title'])
-    sanDF = pre_sanitizedDF.withColumn('sanitized_text',sanitize('body'))
+    sanDF = pre_sanitizedDF.withColumn('sanitized_text', clean('body'))
     result = model.transform(sanDF)
     pos_training = posModel.transform(result).selectExpr('features',
         'clean_link_id as id', 'created_utc as time', 'body',
