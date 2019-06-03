@@ -10,7 +10,23 @@ from pyspark.ml.tuning import CrossValidator, CrossValidatorModel,ParamGridBuild
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
 from pathlib import Path
 
+states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
+'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia',
+'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky',
+'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
+'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
+'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota',
+'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
+'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia',
+'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
+
 def main(context):
+    udf_pos_colum = udf(pos_column, IntegerType())
+    udf_neg_colum = udf(neg_column, IntegerType())
+    clean_udf = udf(clean_link, StringType())
+    udf_pos = udf(get_pos_prob, IntegerType())
+    udf_neg = udf(get_neg_prob, IntegerType())
+
     """Main function takes a Spark SQL context."""
     # YOUR CODE HERE
     # YOU MAY ADD OTHER FUNCTIONS AS NEEDED
@@ -39,9 +55,8 @@ def main(context):
 
 
     # TASKS 6A, 6B
-    cv = CountVectorizer(inputCol="sanitized_text", outputCol="features", binary=True, minDF=10)
-    udf_pos_colum = udf(pos_column, IntegerType())
-    udf_neg_colum = udf(neg_column, IntegerType())
+    cv = CountVectorizer(inputCol="sanitized_text", outputCol="features",
+                          binary=True, minDF=10)
     model = cv.fit(dataDF)
     result = model.transform(dataDF)
     # positive_df = result.withColumn("poslabel", udf_pos_colum('labeldjt'))
@@ -94,23 +109,22 @@ def main(context):
     commentsDF = dataDF.filter((~dataDF.body.like("%/s%")) &
                     (~dataDF.body.like("&gt%"))).select("*")
 
-    clean_udf = udf(clean_link, StringType())
     cleanedDF = commentsDF.withColumn("clean_link_id", clean_udf('link_id'))
     pre_sanitizedDF = cleanedDF.join(submissionsDF,
-        cleanedDF.clean_link_id == submissionsDF.id).select(cleanedDF['created_utc'],
-        cleanedDF['body'],cleanedDF['author_flair_text'], submissionsDF['score'],
+        cleanedDF.clean_link_id == submissionsDF.id).select(
+        cleanedDF['created_utc'], cleanedDF['body'],
+        cleanedDF['author_flair_text'], submissionsDF['score'],
         cleanedDF['clean_link_id'], submissionsDF['title'])
-    sanitizedDF = pre_sanitizedDF.withColumn('sanitized_text', sanitize_udf('body'))
-    result = model.transform(sanitizedDF)
+    sanDF = pre_sanitizedDF.withColumn('sanitized_text',sanitize_udf('body'))
+    result = model.transform(sanDF)
     pos_training = posModel.transform(result).selectExpr('features',
         'clean_link_id as id', 'created_utc as time', 'body',
         'author_flair_text as state', 'title','probability as pos_probability',
         'sanitized_text')
     both_training = negModel.transform(pos_training)
-    udf_pos = udf(get_pos_prob, IntegerType())
-    udf_neg = udf(get_neg_prob, IntegerType())
     both_with_pos = both_training.withColumn('pos', udf_pos('pos_probability'))
     allDF = both_with_pos.withColumn('neg', udf_neg('probability'))
+    allDF.show(n=75)
 
 
 def get_pos_prob(probability):
