@@ -31,28 +31,33 @@ def main(context):
 
     # try:
     labelsDF = sqlContext.read.parquet('labels.pqt').sample(False, .25, None)
-    # # except:
-    # #     labelsDF = context.read.csv("labeled_data.csv", header=True)
-    # #     labelsDF.write.parquet("labels.pqt")
-    # # try:
+    # except:
+    #     labelsDF = context.read.csv("labeled_data.csv", header=True)
+    #     labelsDF.write.parquet("labels.pqt")
+    # try:
     submissionsDF = sqlContext.read.parquet("submissions.pqt").sample(False, .25, None)
 
-    # # except:
-    # #     submissionsDF = context.read.json("submissions.json.bz2")
-    # #     submissionsDF.write.parquet("submissions.pqt")
+    # except:
+    #     submissionsDF = context.read.json("submissions.json.bz2")
+    #     submissionsDF.write.parquet("submissions.pqt")
 
 
     dataDF = labelsDF.join(commentsDF, labelsDF.Input_id == commentsDF.id)
-    # # ### TASK 4 + 5
+    # TASKS 4, 5
     sanitize_udf = udf(sanitize, ArrayType(StringType()))
     dataDF = dataDF.withColumn("sanitized_text", sanitize_udf('body'))
-    # # # dataDF.write.parquet("sanitized_data.pqt")
+    # dataDF.write.parquet("sanitized_data.pqt")
 
 
-    # # TASKS 6A, 6B
-    cv = CountVectorizer(inputCol="sanitized_text", outputCol="features",
-                          binary=True, minDF=10)
-    model = cv.fit(dataDF)
+    # TASKS 6A, 6B
+    try:
+        model = CountVectorizerModel.load("project2/model")
+    except:
+        cv = CountVectorizer(inputCol="sanitized_text", outputCol="features",
+                             binary=True, minDF=10)
+        model = cv.fit(dataDF)
+        model.save("project2/model")
+
     result = model.transform(dataDF)
     positive_df = result.withColumn("poslabel", udf_pos_colum('labeldjt'))
     negative_df = result.withColumn("neglabel", udf_neg_colum('labeldjt'))
@@ -86,11 +91,12 @@ def main(context):
     # states.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("states.csv")
 
 def get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model, clean):
+    """Task 9"""
     udf_clean = udf(clean_link, StringType())
     udf_pos = udf(get_pos_prob, IntegerType())
     udf_neg = udf(get_neg_prob, IntegerType())
-    # # TASK 8
-    # # Remove sarcastic or quote comments
+
+    # Remove sarcastic or quote comments
     commentsDF = commentsDF.filter((~commentsDF.body.like("%/s%")) &
                     (~commentsDF.body.like("&gt%"))).select("*")
     print(commentsDF)
@@ -143,9 +149,9 @@ def train_models(pos, neg):
     # Although crossvalidation creates its own train/test sets for
     # tuning, we still need a labeled test set, because it is not
     # accessible from the crossvalidator (argh!)
-    # Split the data 50/50
-    posTrain, posTest = pos.randomSplit([0.5, 0.5])
-    negTrain, negTest = neg.randomSplit([0.5, 0.5])
+    # Don't split the data since this dataset is much smaller than unseen data
+    posTrain = pos
+    negTrain = neg
     # Train the models
     print("Training positive classifier...")
     posModel = posCrossval.fit(posTrain)
