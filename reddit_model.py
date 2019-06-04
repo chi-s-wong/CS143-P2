@@ -4,7 +4,7 @@ from pyspark.sql import SQLContext
 from cleantext import sanitize
 from pyspark.sql.types import *
 from pyspark.sql.functions import udf, col
-from pyspark.ml.feature import CountVectorizer
+from pyspark.ml.feature import CountVectorizer, CountVectorizerModel
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml.tuning import CrossValidator, CrossValidatorModel,ParamGridBuilder
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
@@ -18,24 +18,23 @@ def main(context):
     'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia',
     'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky',
     'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
-    'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
+    'Mississippi', 'Missouri', 'Monrtana', 'Nebraska', 'Nevada', 'New Hampshire',
     'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota',
     'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
     'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia',
     'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
     # try:
-    commentsDF = sqlContext.read.parquet('comments.pqt').sample(False, .25, None)
-    # except:
+    commentsDF = sqlContext.read.parquet('comments.pqt').sample(False, .2, None)
     #     commentsDF = context.read.json("comments-minimal.json.bz2")
     #     commentsDF.write.parquet("comments.pqt")
 
     # try:
-    labelsDF = sqlContext.read.parquet('labels.pqt').sample(False, .25, None)
+    labelsDF = sqlContext.read.parquet('labels.pqt')
     # except:
     #     labelsDF = context.read.csv("labeled_data.csv", header=True)
     #     labelsDF.write.parquet("labels.pqt")
     # try:
-    submissionsDF = sqlContext.read.parquet("submissions.pqt").sample(False, .25, None)
+    submissionsDF = sqlContext.read.parquet("submissions.pqt")
 
     # except:
     #     submissionsDF = context.read.json("submissions.json.bz2")
@@ -63,29 +62,32 @@ def main(context):
     negative_df = result.withColumn("neglabel", udf_neg_colum('labeldjt'))
 
     # # try:
-    # posModel = CrossValidatorModel.load('project2/pos.model')
-    # negModel = CrossValidatorModel.load('project2/neg.model')
+    posModel = CrossValidatorModel.load('project2/pos.model')
+    negModel = CrossValidatorModel.load('project2/neg.model')
     # except:
-    posModel, negModel = train_models(positive_df, negative_df)
+    # posModel, negModel = train_models(positive_df, negative_df)
 
     task10 = get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model,
                             sanitize_udf)
     # task10.write.parquet("task10.pqt")
-    task10.show(n=80)
+    # task10.show(n=80)
     task10.createOrReplaceTempView("dataTable")
-    # perc_across_subm = context.sql("""SELECT id, AVG(pos) AS pos_avg, AVG(neg)
-    #                                  AS neg_avg, COUNT(id) FROM dataTable
-    #                                  GROUP BY id""")
+    top10_pos = context.sql("""SELECT id, AVG(pos) AS pos_avg, AVG(neg)
+                                      AS neg_avg, COUNT(id) FROM dataTable
+                                      GROUP BY id ORDER BY pos_avg DESC LIMIT 10""")
+    top10_neg = context.sql("""SELECT id, AVG(pos) AS pos_avg, AVG(neg)
+                                      AS neg_avg, COUNT(id) FROM dataTable
+                                      GROUP BY id ORDER BY neg_avg DESC LIMIT 10""")
+    # top10_pos.show()
+    # top10_neg.show()
     times = context.sql("""SELECT from_unixtime(time,'YYYY-MM-dd') AS date,
                         AVG(pos) AS Positive, AVG(neg) AS Negative FROM
                         dataTable GROUP BY date""")
-
 
     task10 = task10.filter(col('state').isin(states))
     task10.createOrReplaceTempView('dataTable')
     states = context.sql("""SELECT state, AVG(pos) AS Positive, AVG(neg) AS
                             Negative, COUNT(state) from dataTable GROUP BY state""")
-    states.show(n=50)
     # perc_across_subm.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("percents.csv")
     # times.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("times.csv")
     # states.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("states.csv")
@@ -116,6 +118,7 @@ def get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model, clean):
         'author_flair_text as state', 'prediction as p', 'rawPrediction as rP',
         'title','probability as pos_probability',
         'sanitized_text')
+
     neg_training = negModel.transform(pos_training)
     neg_training = neg_training.withColumn('pos', udf_pos('pos_probability'))
     neg_training = neg_training.withColumn('neg', udf_neg('probability'))
@@ -140,22 +143,22 @@ def train_models(pos, neg):
         estimator=poslr,
         evaluator=posEvaluator,
         estimatorParamMaps=posParamGrid,
-        numFolds=5)
+        numFolds=3)
     negCrossval = CrossValidator(
         estimator=neglr,
         evaluator=negEvaluator,
         estimatorParamMaps=negParamGrid,
-        numFolds=5)
+        numFolds=3)
     # Although crossvalidation creates its own train/test sets for
     # tuning, we still need a labeled test set, because it is not
     # accessible from the crossvalidator (argh!)
     # Don't split the data since this dataset is much smaller than unseen data
-    posTrain = pos
-    negTrain = neg
+    posTrain,posTest = pos.randomSplit([.5, .5])
+    negTrain,negTest = neg.randomSplit([.5, .5])
     # Train the models
     print("Training positive classifier...")
     posModel = posCrossval.fit(posTrain)
-    print("Training negative classifier...")
+    print("Training negative classifier..dd.")
     negModel = negCrossval.fit(negTrain)
 
     # Once we train the models, we don't want to do it again.
@@ -167,7 +170,7 @@ def train_models(pos, neg):
 def get_pos_prob(probability):
     return 1 if float(probability[1]) > .2 else 0
 def get_neg_prob(probability):
-    return 1 if float(probability[1]) > .25 else 0
+    return 1 if float(probability[1]) > .28 else 0
 def clean_link(link):
     return link[3:]
 def pos_column(value):
