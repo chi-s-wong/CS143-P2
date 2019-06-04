@@ -12,8 +12,8 @@ from pathlib import Path
 
 
 def main(context):
-    # udf_pos_colum = udf(pos_column, IntegerType())
-    # udf_neg_colum = udf(neg_column, IntegerType())
+    udf_pos_colum = udf(pos_column, IntegerType())
+    udf_neg_colum = udf(neg_column, IntegerType())
     states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
     'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia',
     'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky',
@@ -23,64 +23,64 @@ def main(context):
     'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
     'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia',
     'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
-    try:
-        commentsDF = sqlContext.read.parquet('comments.pqt')
-    except:
-        commentsDF = context.read.json("comments-minimal.json.bz2")
-        commentsDF.write.parquet("comments.pqt")
+    # try:
+    commentsDF = sqlContext.read.parquet('comments.pqt').sample(False, .25, None)
+    # except:
+    #     commentsDF = context.read.json("comments-minimal.json.bz2")
+    #     commentsDF.write.parquet("comments.pqt")
 
-    try:
-        labelsDF = sqlContext.read.parquet('labels.pqt')
-    except:
-        labelsDF = context.read.csv("labeled_data.csv", header=True)
-        labelsDF.write.parquet("labels.pqt")
-    try:
-        submissionsDF = sqlContext.read.parquet("submissions.pqt")
-    except:
-        submissionsDF = context.read.json("submissions.json.bz2")
-        submissionsDF.write.parquet("submissions.pqt")
+    # try:
+    labelsDF = sqlContext.read.parquet('labels.pqt').sample(False, .25, None)
+    # # except:
+    # #     labelsDF = context.read.csv("labeled_data.csv", header=True)
+    # #     labelsDF.write.parquet("labels.pqt")
+    # # try:
+    submissionsDF = sqlContext.read.parquet("submissions.pqt").sample(False, .25, None)
+
+    # # except:
+    # #     submissionsDF = context.read.json("submissions.json.bz2")
+    # #     submissionsDF.write.parquet("submissions.pqt")
 
 
     dataDF = labelsDF.join(commentsDF, labelsDF.Input_id == commentsDF.id)
     # # ### TASK 4 + 5
     sanitize_udf = udf(sanitize, ArrayType(StringType()))
     dataDF = dataDF.withColumn("sanitized_text", sanitize_udf('body'))
-    # # dataDF.write.parquet("sanitized_data.pqt")
+    # # # dataDF.write.parquet("sanitized_data.pqt")
 
 
-    # TASKS 6A, 6B
+    # # TASKS 6A, 6B
     cv = CountVectorizer(inputCol="sanitized_text", outputCol="features",
                           binary=True, minDF=10)
     model = cv.fit(dataDF)
-    # result = model.transform(dataDF)
-    # # positive_df = result.withColumn("poslabel", udf_pos_colum('labeldjt'))
-    # # negative_df = result.withColumn("neglabel", udf_neg_colum('labeldjt'))
+    result = model.transform(dataDF)
+    positive_df = result.withColumn("poslabel", udf_pos_colum('labeldjt'))
+    negative_df = result.withColumn("neglabel", udf_neg_colum('labeldjt'))
 
-    try:
-        posModel = CrossValidatorModel.load('project2/pos.model')
-        negModel = CrossValidatorModel.load('project2/neg.model')
-    except:
-        posModel, negModel = train_models(positive_df, negative_df)
+    # # try:
+    # posModel = CrossValidatorModel.load('project2/pos.model')
+    # negModel = CrossValidatorModel.load('project2/neg.model')
+    # except:
+    posModel, negModel = train_models(positive_df, negative_df)
 
     task10 = get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model,
                             sanitize_udf)
-    task10.write.parquet("task10.pqt")
-    # print(task10)
-    # task10.show(n=5)
-    # task10.createOrReplaceTempView("dataTable")
+    # task10.write.parquet("task10.pqt")
+    task10.show(n=80)
+    task10.createOrReplaceTempView("dataTable")
     # perc_across_subm = context.sql("""SELECT id, AVG(pos) AS pos_avg, AVG(neg)
     #                                  AS neg_avg, COUNT(id) FROM dataTable
     #                                  GROUP BY id""")
-    # times = context.sql("""SELECT from_unixtime(time,'YYYY-MM-dd') AS date,
-    #                     AVG(pos) AS Positive, AVG(neg) AS Negative FROM
-    #                     dataTable GROUP BY date""")
+    times = context.sql("""SELECT from_unixtime(time,'YYYY-MM-dd') AS date,
+                        AVG(pos) AS Positive, AVG(neg) AS Negative FROM
+                        dataTable GROUP BY date""")
 
 
-    # task10 = task10.filter(col('state').isin(states))
-    # task10.createOrReplaceTempView('dataTable')
-    # states = context.sql("""SELECT state, AVG(pos) AS Positive, AVG(neg) AS
-    #                         Negative, COUNT(state) from dataTable GROUP BY state""")
-    # states.show(n=50)
+    task10 = task10.filter(col('state').isin(states))
+    task10.createOrReplaceTempView('dataTable')
+    states = context.sql("""SELECT state, AVG(pos) AS Positive, AVG(neg) AS
+                            Negative, COUNT(state) from dataTable GROUP BY state""")
+    states.show(n=50)
     # perc_across_subm.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("percents.csv")
     # times.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("times.csv")
     # states.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("states.csv")
@@ -107,11 +107,14 @@ def get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model, clean):
     pos_training = posModel.transform(result).selectExpr('features',
         'comment_score as comScore', 'score as subcore',
         'clean_link_id as id', 'created_utc as time', 'body',
-        'author_flair_text as state', 'title','probability as pos_probability',
+        'author_flair_text as state', 'prediction as p', 'rawPrediction as rP',
+        'title','probability as pos_probability',
         'sanitized_text')
-    both_training = negModel.transform(pos_training)
-    both_with_pos = both_training.withColumn('pos', udf_pos('pos_probability'))
-    return both_with_pos.withColumn('neg', udf_neg('probability'))
+    neg_training = negModel.transform(pos_training)
+    neg_training = neg_training.withColumn('pos', udf_pos('pos_probability'))
+    neg_training = neg_training.withColumn('neg', udf_neg('probability'))
+    return neg_training
+
 
 def train_models(pos, neg):
     # Initialize two logistic regression models.
