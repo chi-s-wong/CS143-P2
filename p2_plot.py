@@ -85,7 +85,7 @@ pos_colors = {}
 statenames = []
 pos_cmap = plt.cm.Greens # use 'hot' colormap
 
-vmin = 0; vmax = 1 # set range.
+vmin = .3; vmax = .37 # set range.
 for shapedict in m.states_info:
     statename = shapedict['NAME']
     # skip DC and Puerto Rico.
@@ -100,9 +100,10 @@ ax = plt.gca() # get current axes instance
 for nshape, seg in enumerate(m.states):
     # skip Puerto Rico and DC
     if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
-        color = rgb2hex(pos_colors[statenames[nshape]])
-        poly = Polygon(seg, facecolor=color, edgecolor=color)
-        ax.add_patch(poly)
+        if statenames[nshape] in neg_data:
+          color = rgb2hex(pos_colors[statenames[nshape]])
+          poly = Polygon(seg, facecolor=color, edgecolor=color)
+          ax.add_patch(poly)
 plt.title('Positive Trump Sentiment Across the US')
 plt.savefig("pos_map.png")
 
@@ -110,13 +111,14 @@ pos_colors = {}
 statenames = []
 pos_cmap = plt.cm.Reds # use 'hot' colormap
 
-vmin = 0; vmax = 1 # set range.
+vmin = .81; vmax = .87 # set range.
 for shapedict in m.states_info:
     statename = shapedict['NAME']
     # skip DC and Puerto Rico.
     if statename not in ['District of Columbia', 'Puerto Rico']:
-        pos = neg_data[statename]
-        pos_colors[statename] = pos_cmap(1. - np.sqrt(( pos - vmin )/( vmax - vmin)))[:3]
+        if statename in neg_data:
+          pos = neg_data[statename]
+          pos_colors[statename] = pos_cmap(( pos - vmin )/( vmax - vmin))[:3]
     statenames.append(statename)
 
 # POSITIVE MAP
@@ -124,9 +126,10 @@ ax = plt.gca() # get current axes instance
 for nshape, seg in enumerate(m.states):
     # skip Puerto Rico and DC
     if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
-        color = rgb2hex(pos_colors[statenames[nshape]])
-        poly = Polygon(seg, facecolor=color, edgecolor=color)
-        ax.add_patch(poly)
+        if statenames[nshape] in neg_data:
+          color = rgb2hex(pos_colors[statenames[nshape]])
+          poly = Polygon(seg, facecolor=color, edgecolor=color)
+          ax.add_patch(poly)
 plt.title('Negative Trump Sentiment Across the US')
 plt.savefig("neg_map.png")
 # # SOURCE: https://stackoverflow.com/questions/39742305/how-to-use-basemap-python-to-plot-us-with-50-states

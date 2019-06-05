@@ -18,7 +18,7 @@ def main(context):
     'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia',
     'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky',
     'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
-    'Mississippi', 'Missouri', 'Monrtana', 'Nebraska', 'Nevada', 'New Hampshire',
+    'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
     'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota',
     'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
     'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia',
@@ -34,7 +34,7 @@ def main(context):
     #     labelsDF = context.read.csv("labeled_data.csv", header=True)
     #     labelsDF.write.parquet("labels.pqt")
     # try:
-    submissionsDF = sqlContext.read.parquet("submissions.pqt")
+    submissionsDF = sqlContext.read.parquet("submissions.pqt").sample(False, .2, None)
 
     # except:
     #     submissionsDF = context.read.json("submissions.json.bz2")
@@ -58,32 +58,39 @@ def main(context):
         model.save("project2/model")
 
     result = model.transform(dataDF)
-    positive_df = result.withColumn("poslabel", udf_pos_colum('labeldjt'))
-    negative_df = result.withColumn("neglabel", udf_neg_colum('labeldjt'))
-
+    # positive_df = dataDF.withColumn("poslabel", udf_pos_colum('labeldjt'))
+    # negative_df = dataDF.withColumn("neglabel", udf_neg_colum('labeldjt'))
+    # pos = cv.fit(positive_df)
+    # neg = cv.fit(negative_df)
+    # pos = pos.transform(positive_df)
+    # neg = neg.transform(negative_df)
     # # try:
     posModel = CrossValidatorModel.load('project2/pos.model')
     negModel = CrossValidatorModel.load('project2/neg.model')
     # except:
-    # posModel, negModel = train_models(positive_df, negative_df)
+    # posModel, negModel = train_models(pos, neg)
 
     task10 = get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model,
                             sanitize_udf)
-    # task10.write.parquet("task10.pqt")
-    # task10.show(n=80)
+    # # # task10.write.parquet("task10.pqt")
+    # # # task10.show(n=80)
     task10.createOrReplaceTempView("dataTable")
-    top10_pos = context.sql("""SELECT id, AVG(pos) AS pos_avg, AVG(neg)
-                                      AS neg_avg, COUNT(id) FROM dataTable
-                                      GROUP BY id ORDER BY pos_avg DESC LIMIT 10""")
+    top10_pos = context.sql("""SELECT id,title, AVG(pos) AS pos_avg, AVG(neg)
+                            AS neg_avg, COUNT(id) FROM dataTable
+                            GROUP BY id,title ORDER BY AVG(pos) DESC LIMIT 10""")
+
     top10_neg = context.sql("""SELECT id, AVG(pos) AS pos_avg, AVG(neg)
                                       AS neg_avg, COUNT(id) FROM dataTable
-                                      GROUP BY id ORDER BY neg_avg DESC LIMIT 10""")
-    # top10_pos.show()
-    # top10_neg.show()
+                                      GROUP BY id ORDER BY AVG(neg) DESC LIMIT 10""")
+    top10_pos.select('title').show()
+    top10_neg.select('title').show()
+
+    # top10_pos.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_pos.csv")
+    # top10_neg.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_neg.csv")
+
     times = context.sql("""SELECT from_unixtime(time,'YYYY-MM-dd') AS date,
                         AVG(pos) AS Positive, AVG(neg) AS Negative FROM
                         dataTable GROUP BY date""")
-
     task10 = task10.filter(col('state').isin(states))
     task10.createOrReplaceTempView('dataTable')
     states = context.sql("""SELECT state, AVG(pos) AS Positive, AVG(neg) AS
@@ -143,12 +150,12 @@ def train_models(pos, neg):
         estimator=poslr,
         evaluator=posEvaluator,
         estimatorParamMaps=posParamGrid,
-        numFolds=3)
+        numFolds=5)
     negCrossval = CrossValidator(
         estimator=neglr,
         evaluator=negEvaluator,
         estimatorParamMaps=negParamGrid,
-        numFolds=3)
+        numFolds=5)
     # Although crossvalidation creates its own train/test sets for
     # tuning, we still need a labeled test set, because it is not
     # accessible from the crossvalidator (argh!)
@@ -170,7 +177,7 @@ def train_models(pos, neg):
 def get_pos_prob(probability):
     return 1 if float(probability[1]) > .2 else 0
 def get_neg_prob(probability):
-    return 1 if float(probability[1]) > .28 else 0
+    return 1 if float(probability[1]) > .25 else 0
 def clean_link(link):
     return link[3:]
 def pos_column(value):
