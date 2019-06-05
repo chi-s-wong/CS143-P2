@@ -115,6 +115,7 @@ def main(context):
     top10q = context.sql("""SELECT id,title, AVG(pos) AS pos_avg, AVG(neg)
                             AS neg_avg, COUNT(id) as count FROM dataTable
                             GROUP BY id,title""")
+    top10q.createOrReplaceTempView("top10")
     top10_pos = context.sql("""SELECT id,title,pos_avg from top10
                              ORDER BY pos_avg DESC LIMIT 10""")
     top10_neg = context.sql("""SELECT id,title,neg_avg from top10
