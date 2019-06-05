@@ -14,6 +14,8 @@ from pathlib import Path
 def main(context):
     udf_pos_colum = udf(pos_column, IntegerType())
     udf_neg_colum = udf(neg_column, IntegerType())
+    sanitize_udf = udf(sanitize, ArrayType(StringType()))
+
     states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
     'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia',
     'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky',
@@ -31,19 +33,19 @@ def main(context):
     except:
         commentsDF = context.read.json("comments-minimal.json.bz2")
         commentsDF.write.parquet("comments.pqt")
-        
+
     try:
         labelsDF = context.read.parquet('labels.pqt')
     except:
         labelsDF = context.read.csv("labeled_data.csv", header=True)
         labelsDF.write.parquet("labels.pqt")
-        
+
     try:
         submissionsDF = context.read.parquet("submissions.pqt").sample(False, .2, None)
     except:
         submissionsDF = context.read.json("submissions.json.bz2")
         submissionsDF.write.parquet("submissions.pqt")
-        
+
     try:
         dataDF = context.read.parquet("sanitized_data.pqt")
     except:
@@ -51,7 +53,6 @@ def main(context):
         # See report for answers to questions 1 and 2
         dataDF = labelsDF.join(commentsDF, labelsDF.Input_id == commentsDF.id)
         # TASKS 4, 5
-        sanitize_udf = udf(sanitize, ArrayType(StringType()))
         dataDF = dataDF.withColumn("sanitized_text", sanitize_udf('body'))
         dataDF.write.parquet("sanitized_data.pqt")
 
@@ -63,7 +64,7 @@ def main(context):
                              binary=True, minDF=10)
         model = cv.fit(dataDF)
         model.save("project2/model")
-        
+
     # TASK 6B
     result = model.transform(dataDF)
     positive_df = result.withColumn("poslabel", udf_pos_colum('labeldjt'))
@@ -75,7 +76,7 @@ def main(context):
         negModel = CrossValidatorModel.load('project2/neg.model')
     except:
         posModel, negModel = train_models(positive_df, negative_df)
-    
+
     # TASKS 8, 9 in get_pos_negDF
     commentsDF = commentsDF.sample(False, .2, None)
     task10 = get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model,
@@ -115,19 +116,20 @@ def main(context):
     top10q = context.sql("""SELECT id,title, AVG(pos) AS pos_avg, AVG(neg)
                             AS neg_avg, COUNT(id) as count FROM dataTable
                             GROUP BY id,title""")
+    top10q.createOrReplaceTempView('top10')
     top10_pos = context.sql("""SELECT id,title,pos_avg from top10
                              ORDER BY pos_avg DESC LIMIT 10""")
     top10_neg = context.sql("""SELECT id,title,neg_avg from top10
                              ORDER BY neg_avg DESC LIMIT 10""")
 
     # Write query results onto disk as CSV files
-    perc_across_subm.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("percents.csv")
-    times.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("times.csv")
-    states.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("states.csv")
-    submission_score.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("submission_score_1.csv")
-    comment_score.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("comment_score_1.csv")
-    top10_pos.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_pos.csv")
-    top10_neg.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_neg.csv")
+    # perc_across_subm.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("percents.csv")
+    # times.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("times.csv")
+    # states.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("states.csv")
+    # submission_score.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("submission_score_1.csv")
+    # comment_score.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("comment_score_1.csv")
+    # top10_pos.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_pos.csv")
+    # top10_neg.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_neg.csv")
 
 
 '''
@@ -164,7 +166,7 @@ def get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model, clean):
     result = model.transform(sanDF)
     # Avoid a join by renaming some columns here
     pos_training = posModel.transform(result).selectExpr('features',
-        'comment_score as comScore', 'score as subcore',
+        'comment_score as comScore', 'score as subScore',
         'clean_link_id as id', 'created_utc as time', 'body',
         'author_flair_text as state', 'prediction as p', 'rawPrediction as rP',
         'title','probability as pos_probability',
