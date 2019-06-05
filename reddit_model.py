@@ -23,8 +23,9 @@ def main(context):
     'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
     'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia',
     'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
-    
+
     # TASK 1
+    # Read the files in from pqt, if they are not there, create them
     try:
         commentsDF = context.read.parquet('comments.pqt')
     except:
@@ -42,12 +43,12 @@ def main(context):
     except:
         submissionsDF = context.read.json("submissions.json.bz2")
         submissionsDF.write.parquet("submissions.pqt")
-
-
+        
     try:
         dataDF = context.read.parquet("sanitized_data.pqt")
     except:
         # TASK 2
+        # See report for answers to questions 1 and 2
         dataDF = labelsDF.join(commentsDF, labelsDF.Input_id == commentsDF.id)
         # TASKS 4, 5
         sanitize_udf = udf(sanitize, ArrayType(StringType()))
@@ -75,12 +76,12 @@ def main(context):
     except:
         posModel, negModel = train_models(positive_df, negative_df)
     
-
     # TASKS 8, 9 in get_pos_negDF
     commentsDF = commentsDF.sample(False, .2, None)
     task10 = get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model,
                             sanitize_udf)
     # TASK 10
+    # Create a temporary view to reuse over multiple queries
     task10.createOrReplaceTempView("dataTable")
     # TASK 10.1
     # Compute the percentage of comments that were positive and the percentage of comments
@@ -97,6 +98,7 @@ def main(context):
     # TASK 10.3
     # Compute the percentage of comments that were positive and the percentage of comments
     # that were negative across all states.
+    # Filter only where the commenter has a US State flair
     task10_3 = task10.filter(col('state').isin(states))
     task10_3.createOrReplaceTempView('stateTable')
     states = context.sql("""SELECT state, AVG(pos) AS Positive, AVG(neg) AS
@@ -113,11 +115,10 @@ def main(context):
     top10q = context.sql("""SELECT id,title, AVG(pos) AS pos_avg, AVG(neg)
                             AS neg_avg, COUNT(id) as count FROM dataTable
                             GROUP BY id,title""")
-    top10q.createOrReplaceTempView("top10")
-    top10_pos = context.sql("""SELECT id,title,pos_avg from top10 WHERE
-                            count > 40 ORDER BY pos_avg DESC LIMIT 10""")
-    top10_neg = context.sql("""SELECT id,title,neg_avg from top10 WHERE
-                            count > 40 ORDER BY neg_avg DESC LIMIT 10""")
+    top10_pos = context.sql("""SELECT id,title,pos_avg from top10
+                             ORDER BY pos_avg DESC LIMIT 10""")
+    top10_neg = context.sql("""SELECT id,title,neg_avg from top10
+                             ORDER BY neg_avg DESC LIMIT 10""")
 
     # Write query results onto disk as CSV files
     perc_across_subm.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("percents.csv")
@@ -128,25 +129,40 @@ def main(context):
     top10_pos.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_pos.csv")
     top10_neg.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_neg.csv")
 
+
+'''
+Uses the training models on the incoming datasets
+@param commentsDF - comments dataset
+@param submissionsDF - submissions dataset
+@param posModel - positive training model
+@param negModel - negative training model
+@param model - CountVectorizerModel
+@param clean - sanitize function
+@return - returns the trained dataset according to tasks 8 and 9
+in this order (posModel, negModel)
+'''
 def get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model, clean):
-    """Returns a dataframe after completing Tasks 8 and 9"""
     udf_clean = udf(clean_link, StringType())
     udf_pos = udf(get_pos_prob, IntegerType())
     udf_neg = udf(get_neg_prob, IntegerType())
-
+    # TASKS 8, 9
+    # Remove sarcastic or quote comments
     commentsDF = commentsDF.filter((~commentsDF.body.like("%/s%")) &
                     (~commentsDF.body.like("&gt%"))).select("*")
+    # Remove the 't3_' in the begininning of link_ids
     cleanedDF = commentsDF.withColumn("clean_link_id", udf_clean('link_id'))
+    # Rename before join
     cleanedDF = cleanedDF.withColumnRenamed("score", "comment_score")
-    # TASK 8
+    # Project only the relevant attributes
     pre_sanitizedDF = cleanedDF.join(submissionsDF,
         cleanedDF.clean_link_id == submissionsDF.id).select(
         cleanedDF['created_utc'], cleanedDF['body'], cleanedDF['comment_score'],
         cleanedDF['author_flair_text'], submissionsDF['score'],
         cleanedDF['clean_link_id'], submissionsDF['title'])
-    # TASK 9
+    # Sanitize the body of the comments
     sanDF = pre_sanitizedDF.withColumn('sanitized_text', clean('body'))
     result = model.transform(sanDF)
+    # Avoid a join by renaming some columns here
     pos_training = posModel.transform(result).selectExpr('features',
         'comment_score as comScore', 'score as subcore',
         'clean_link_id as id', 'created_utc as time', 'body',
@@ -155,11 +171,18 @@ def get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model, clean):
         'sanitized_text')
 
     neg_training = negModel.transform(pos_training)
+    # Construct new columns based on ROC threshold
     neg_training = neg_training.withColumn('pos', udf_pos('pos_probability'))
     neg_training = neg_training.withColumn('neg', udf_neg('probability'))
     return neg_training
 
-
+'''
+Trains the two models if they are not already generated
+@param pos - dataframe with the 'poslabel' column
+@param neg - dataframe with the 'neglabel' column
+@return - returns the positive and negative training models
+in this order (posModel, negModel)
+'''
 def train_models(pos, neg):
     # Initialize two logistic regression models.
     # Replace labelCol with the column containing the label, and featuresCol with the column containing the features.
@@ -202,6 +225,8 @@ def train_models(pos, neg):
     negModel.save("project2/neg.model")
     return posModel, negModel
 
+
+# HELPER UDF FUNCTIONSS
 def get_pos_prob(probability):
     return 1 if float(probability[1]) > .2 else 0
 def get_neg_prob(probability):
