@@ -23,32 +23,38 @@ def main(context):
     'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
     'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia',
     'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
-    # try:
-    commentsDF = sqlContext.read.parquet('comments.pqt').sample(False, .2, None)
-    #     commentsDF = context.read.json("comments-minimal.json.bz2")
-    #     commentsDF.write.parquet("comments.pqt")
-
-    # try:
-    labelsDF = sqlContext.read.parquet('labels.pqt')
-    # except:
-    #     labelsDF = context.read.csv("labeled_data.csv", header=True)
-    #     labelsDF.write.parquet("labels.pqt")
-    # try:
-    submissionsDF = sqlContext.read.parquet("submissions.pqt").sample(False, .2, None)
-
-    # except:
-    #     submissionsDF = context.read.json("submissions.json.bz2")
-    #     submissionsDF.write.parquet("submissions.pqt")
-
-
-    dataDF = labelsDF.join(commentsDF, labelsDF.Input_id == commentsDF.id)
-    # TASKS 4, 5
-    sanitize_udf = udf(sanitize, ArrayType(StringType()))
-    dataDF = dataDF.withColumn("sanitized_text", sanitize_udf('body'))
-    # dataDF.write.parquet("sanitized_data.pqt")
+    
+    # TASK 1
+    try:
+        commentsDF = context.read.parquet('comments.pqt')
+    except:
+        commentsDF = context.read.json("comments-minimal.json.bz2")
+        commentsDF.write.parquet("comments.pqt")
+        
+    try:
+        labelsDF = context.read.parquet('labels.pqt')
+    except:
+        labelsDF = context.read.csv("labeled_data.csv", header=True)
+        labelsDF.write.parquet("labels.pqt")
+        
+    try:
+        submissionsDF = context.read.parquet("submissions.pqt").sample(False, .2, None)
+    except:
+        submissionsDF = context.read.json("submissions.json.bz2")
+        submissionsDF.write.parquet("submissions.pqt")
 
 
-    # TASKS 6A, 6B
+    try:
+        dataDF = context.read.parquet("sanitized_data.pqt")
+    except:
+        # TASK 2
+        dataDF = labelsDF.join(commentsDF, labelsDF.Input_id == commentsDF.id)
+        # TASKS 4, 5
+        sanitize_udf = udf(sanitize, ArrayType(StringType()))
+        dataDF = dataDF.withColumn("sanitized_text", sanitize_udf('body'))
+        dataDF.write.parquet("sanitized_data.pqt")
+
+    # TASKS 6A
     try:
         model = CountVectorizerModel.load("project2/model")
     except:
@@ -56,21 +62,54 @@ def main(context):
                              binary=True, minDF=10)
         model = cv.fit(dataDF)
         model.save("project2/model")
+        
+    # TASK 6B
+    result = model.transform(dataDF)
+    positive_df = result.withColumn("poslabel", udf_pos_colum('labeldjt'))
+    negative_df = result.withColumn("neglabel", udf_neg_colum('labeldjt'))
 
-    # result = model.transform(dataDF)
-    # positive_df = result.withColumn("poslabel", udf_pos_colum('labeldjt'))
-    # negative_df = result.withColumn("neglabel", udf_neg_colum('labeldjt'))
-    # # try:
-    posModel = CrossValidatorModel.load('project2/pos.model')
-    negModel = CrossValidatorModel.load('project2/neg.model')
-    # except:
-    # posModel, negModel = train_models(positive_df, negative_df)
+    # TASK 7
+    try:
+        posModel = CrossValidatorModel.load('project2/pos.model')
+        negModel = CrossValidatorModel.load('project2/neg.model')
+    except:
+        posModel, negModel = train_models(positive_df, negative_df)
+    
 
+    # TASKS 8, 9 in get_pos_negDF
+    commentsDF = commentsDF.sample(False, .2, None)
     task10 = get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model,
                             sanitize_udf)
-    # # # task10.write.parquet("task10.pqt")
-    # # # task10.show(n=80)
+    # TASK 10
     task10.createOrReplaceTempView("dataTable")
+    # TASK 10.1
+    # Compute the percentage of comments that were positive and the percentage of comments
+    # that were negative across all submissions/posts.
+    perc_across_subm = context.sql("""SELECT id, AVG(pos) AS pos_avg, AVG(neg)
+                                       AS neg_avg, COUNT(id) FROM dataTable
+                                       GROUP BY id""")
+    # TASK 10.2
+    # Compute the percentage of comments that were positive and the percentage of comments
+    # that were negative across all days.
+    times = context.sql("""SELECT from_unixtime(time,'YYYY-MM-dd') AS date,
+                        AVG(pos) AS Positive, AVG(neg) AS Negative FROM
+                        dataTable GROUP BY date""")
+    # TASK 10.3
+    # Compute the percentage of comments that were positive and the percentage of comments
+    # that were negative across all states.
+    task10_3 = task10.filter(col('state').isin(states))
+    task10_3.createOrReplaceTempView('stateTable')
+    states = context.sql("""SELECT state, AVG(pos) AS Positive, AVG(neg) AS
+                            Negative, COUNT(state) FROM stateTable GROUP BY state""")
+    # TASK 10.4
+    # Compute the percentage of comments that were positive and the percentage of comments
+    # that were negative by comment and story score, independently.
+    submission_score = context.sql("""SELECT subScore, AVG(pos) AS pos_avg, AVG(neg)
+                                      AS neg_avg FROM dataTable GROUP BY subScore""")
+    comment_score = context.sql("""SELECT comScore, AVG(pos) AS pos_avg, AVG(neg)
+                                      AS neg_avg FROM dataTable GROUP BY comScore""")
+    # FINAL DELIVERABLE #4
+    # Give a list of the top 10 positive stories and the top 10 negative stories
     top10q = context.sql("""SELECT id,title, AVG(pos) AS pos_avg, AVG(neg)
                             AS neg_avg, COUNT(id) as count FROM dataTable
                             GROUP BY id,title""")
@@ -79,38 +118,33 @@ def main(context):
                             count > 40 ORDER BY pos_avg DESC LIMIT 10""")
     top10_neg = context.sql("""SELECT id,title,neg_avg from top10 WHERE
                             count > 40 ORDER BY neg_avg DESC LIMIT 10""")
+
+    # Write query results onto disk as CSV files
+    perc_across_subm.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("percents.csv")
+    times.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("times.csv")
+    states.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("states.csv")
+    submission_score.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("submission_score_1.csv")
+    comment_score.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("comment_score_1.csv")
     top10_pos.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_pos.csv")
     top10_neg.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_neg.csv")
 
-    times = context.sql("""SELECT from_unixtime(time,'YYYY-MM-dd') AS date,
-                        AVG(pos) AS Positive, AVG(neg) AS Negative FROM
-                        dataTable GROUP BY date""")
-    task10 = task10.filter(col('state').isin(states))
-    task10.createOrReplaceTempView('dataTable')
-    states = context.sql("""SELECT state, AVG(pos) AS Positive, AVG(neg) AS
-                            Negative, COUNT(state) from dataTable GROUP BY state""")
-    # perc_across_subm.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("percents.csv")
-    # times.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("times.csv")
-    # states.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("states.csv")
-
 def get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model, clean):
-    """Task 9"""
+    """Returns a dataframe after completing Tasks 8 and 9"""
     udf_clean = udf(clean_link, StringType())
     udf_pos = udf(get_pos_prob, IntegerType())
     udf_neg = udf(get_neg_prob, IntegerType())
 
-    # Remove sarcastic or quote comments
     commentsDF = commentsDF.filter((~commentsDF.body.like("%/s%")) &
                     (~commentsDF.body.like("&gt%"))).select("*")
-    print(commentsDF)
     cleanedDF = commentsDF.withColumn("clean_link_id", udf_clean('link_id'))
     cleanedDF = cleanedDF.withColumnRenamed("score", "comment_score")
-    print(cleanedDF)
+    # TASK 8
     pre_sanitizedDF = cleanedDF.join(submissionsDF,
         cleanedDF.clean_link_id == submissionsDF.id).select(
         cleanedDF['created_utc'], cleanedDF['body'], cleanedDF['comment_score'],
         cleanedDF['author_flair_text'], submissionsDF['score'],
         cleanedDF['clean_link_id'], submissionsDF['title'])
+    # TASK 9
     sanDF = pre_sanitizedDF.withColumn('sanitized_text', clean('body'))
     result = model.transform(sanDF)
     pos_training = posModel.transform(result).selectExpr('features',
