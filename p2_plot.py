@@ -15,6 +15,34 @@ from mpl_toolkits.basemap import Basemap as Basemap
 from matplotlib.colors import rgb2hex
 from matplotlib.patches import Polygon
 
+
+
+def plot_map(m, info):
+    map_cmap = info['cmap']
+    vmin = info['vmin']
+    vmax = info['vmax']
+    data = info['data']
+    colors = {}
+    statenames = []
+    for shapedict in m.states_info:
+      statename = shapedict['NAME']
+      # skip DC and Puerto Rico.
+      if statename not in ['District of Columbia', 'Puerto Rico']:
+          num = data[statename]
+          colors[statename] = map_cmap(( num - vmin )/( vmax - vmin))[:3]
+      statenames.append(statename)
+
+    ax = plt.gca() # get current axes instance
+    for nshape, seg in enumerate(m.states):
+        # skip Puerto Rico and DC
+        if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
+            color = rgb2hex(colors[statenames[nshape]])
+            poly = Polygon(seg, facecolor=color, edgecolor=color)
+            ax.add_patch(poly)
+    plt.title(info['title'])
+    plt.savefig(info['name'])
+
+
 """
 IMPORTANT
 This is EXAMPLE code.
@@ -80,58 +108,41 @@ shp_info = m.readshapefile('st99_d00','states',drawbounds=True)  # No extension 
 pos_data = dict(zip(state_data.state, state_data.Positive))
 neg_data = dict(zip(state_data.state, state_data.Negative))
 
-# choose a color for each state based on sentiment.
-pos_colors = {}
-statenames = []
-pos_cmap = plt.cm.Greens # use 'hot' colormap
+pos_info ={
+"title": "Positive Trump Sentiment across the US",
+"data": pos_data,
+"name": "pos_map.png",
+"vmin": .3,
+"vmax": .37,
+"cmap": plt.cm.Greens
+}
+neg_info = {
+"title": "Negative Trump Sentiment across the US",
+"data": neg_data,
+"name": "neg_map.png",
+"vmin": .88,
+"vmax": .957,
+"cmap": plt.cm.Reds
+}
 
-vmin = .3; vmax = .37 # set range.
-for shapedict in m.states_info:
-    statename = shapedict['NAME']
-    # skip DC and Puerto Rico.
-    if statename not in ['District of Columbia', 'Puerto Rico']:
-        if statename in pos_data:
-          pos = pos_data[statename]
-          pos_colors[statename] = pos_cmap(( pos - vmin )/( vmax - vmin))[:3]
-    statenames.append(statename)
+diff_data = {}
+for state in pos_data:
+  diff_data[state] = abs(pos_data[state] - neg_data[state])
 
-# POSITIVE MAP
-ax = plt.gca() # get current axes instance
-for nshape, seg in enumerate(m.states):
-    # skip Puerto Rico and DC
-    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
-        if statenames[nshape] in neg_data:
-          color = rgb2hex(pos_colors[statenames[nshape]])
-          poly = Polygon(seg, facecolor=color, edgecolor=color)
-          ax.add_patch(poly)
-plt.title('Positive Trump Sentiment Across the US')
-plt.savefig("pos_map.png")
+diff_info = {
+"title": "Difference in Trump Sentiment across the US",
+"data": diff_data,
+"name": "diff_map.png",
+"vmin": .56,
+"vmax": .63,
+"cmap": plt.cm.Blues
+}
+plot_map(m, pos_info)
+plot_map(m, neg_info)
+plot_map(m, diff_info)
 
-pos_colors = {}
-statenames = []
-pos_cmap = plt.cm.Reds # use 'hot' colormap
 
-vmin = .81; vmax = .87 # set range.
-for shapedict in m.states_info:
-    statename = shapedict['NAME']
-    # skip DC and Puerto Rico.
-    if statename not in ['District of Columbia', 'Puerto Rico']:
-        if statename in neg_data:
-          pos = neg_data[statename]
-          pos_colors[statename] = pos_cmap(( pos - vmin )/( vmax - vmin))[:3]
-    statenames.append(statename)
 
-# POSITIVE MAP
-ax = plt.gca() # get current axes instance
-for nshape, seg in enumerate(m.states):
-    # skip Puerto Rico and DC
-    if statenames[nshape] not in ['District of Columbia', 'Puerto Rico']:
-        if statenames[nshape] in neg_data:
-          color = rgb2hex(pos_colors[statenames[nshape]])
-          poly = Polygon(seg, facecolor=color, edgecolor=color)
-          ax.add_patch(poly)
-plt.title('Negative Trump Sentiment Across the US')
-plt.savefig("neg_map.png")
 # # SOURCE: https://stackoverflow.com/questions/39742305/how-to-use-basemap-python-to-plot-us-with-50-states
 # # (this misses Alaska and Hawaii. If you can get them to work, EXTRA CREDIT)
 
