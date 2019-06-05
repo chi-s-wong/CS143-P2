@@ -57,36 +57,30 @@ def main(context):
         model = cv.fit(dataDF)
         model.save("project2/model")
 
-    result = model.transform(dataDF)
-    # positive_df = dataDF.withColumn("poslabel", udf_pos_colum('labeldjt'))
-    # negative_df = dataDF.withColumn("neglabel", udf_neg_colum('labeldjt'))
-    # pos = cv.fit(positive_df)
-    # neg = cv.fit(negative_df)
-    # pos = pos.transform(positive_df)
-    # neg = neg.transform(negative_df)
+    # result = model.transform(dataDF)
+    # positive_df = result.withColumn("poslabel", udf_pos_colum('labeldjt'))
+    # negative_df = result.withColumn("neglabel", udf_neg_colum('labeldjt'))
     # # try:
     posModel = CrossValidatorModel.load('project2/pos.model')
     negModel = CrossValidatorModel.load('project2/neg.model')
     # except:
-    # posModel, negModel = train_models(pos, neg)
+    # posModel, negModel = train_models(positive_df, negative_df)
 
     task10 = get_pos_negDF(commentsDF, submissionsDF, posModel, negModel, model,
                             sanitize_udf)
     # # # task10.write.parquet("task10.pqt")
     # # # task10.show(n=80)
     task10.createOrReplaceTempView("dataTable")
-    top10_pos = context.sql("""SELECT id,title, AVG(pos) AS pos_avg, AVG(neg)
-                            AS neg_avg, COUNT(id) FROM dataTable
-                            GROUP BY id,title ORDER BY AVG(pos) DESC LIMIT 10""")
-
-    top10_neg = context.sql("""SELECT id, AVG(pos) AS pos_avg, AVG(neg)
-                                      AS neg_avg, COUNT(id) FROM dataTable
-                                      GROUP BY id ORDER BY AVG(neg) DESC LIMIT 10""")
-    top10_pos.select('title').show()
-    top10_neg.select('title').show()
-
-    # top10_pos.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_pos.csv")
-    # top10_neg.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_neg.csv")
+    top10q = context.sql("""SELECT id,title, AVG(pos) AS pos_avg, AVG(neg)
+                            AS neg_avg, COUNT(id) as count FROM dataTable
+                            GROUP BY id,title""")
+    top10q.createOrReplaceTempView("top10")
+    top10_pos = context.sql("""SELECT id,title,pos_avg from top10 WHERE
+                            count > 40 ORDER BY pos_avg DESC LIMIT 10""")
+    top10_neg = context.sql("""SELECT id,title,neg_avg from top10 WHERE
+                            count > 40 ORDER BY neg_avg DESC LIMIT 10""")
+    top10_pos.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_pos.csv")
+    top10_neg.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("10_neg.csv")
 
     times = context.sql("""SELECT from_unixtime(time,'YYYY-MM-dd') AS date,
                         AVG(pos) AS Positive, AVG(neg) AS Negative FROM
